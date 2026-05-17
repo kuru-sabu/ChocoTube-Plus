@@ -1,0 +1,263 @@
+import asyncio
+import re
+import time
+from contextlib import asynccontextmanager
+from urllib.parse import quote, urlencode
+
+import httpx
+from fastapi import FastAPI, Query, Request
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
+
+INVIDIOUS_BASE = "https://raw.githubusercontent.com/kuru-bana/yt-data/main/invidious"
+CACHE_TTL = 5 * 60
+
+category_cache: dict = {}
+http_client: httpx.AsyncClient = None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global http_client
+    http_client = httpx.AsyncClient(timeout=10, follow_redirects=True)
+    yield
+    await http_client.aclose()
+
+
+app = FastAPI(lifespan=lifespan)
+
+
+async def get_instances(category: str) -> list:
+    now = time.time()
+    cached = category_cache.get(category)
+    if cached and now - cached["time"] < CACHE_TTL:
+        return cached["instances"]
+    resp = await http_client.get(f"{INVIDIOUS_BASE}/{category}.json")
+    resp.raise_for_status()
+    data = resp.json()
+    instances = data.get("working_instances", [])
+    category_cache[category] = {"instances": instances, "time": now}
+    return instances
+
+
+async def _try_instance(base: str, invidious_path: str) -> dict:
+    resp = await http_client.get(base + invidious_path)
+    resp.raise_for_status()
+    return {"data": resp.json(), "used_instance": base}
+
+
+async def proxy_parallel(category: str, invidious_path: str, exclude_list: list = None) -> dict:
+    instances = await get_instances(category)
+    if exclude_list:
+        instances = [b for b in instances if not any(ex in b or b in ex for ex in exclude_list)]
+    if not instances:
+        raise Exception(f'No working instances for category "{category}" after exclusions')
+
+    tasks = [asyncio.create_task(_try_instance(base, invidious_path)) for base in instances]
+    errors = []
+    pending = set(tasks)
+    try:
+        while pending:
+            done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+            for task in done:
+                exc = task.exception()
+                if exc is None:
+                    for t in pending:
+                        t.cancel()
+                    return task.result()
+                else:
+                    errors.append(str(exc))
+    finally:
+        for t in pending:
+            t.cancel()
+
+    raise Exception("All instances failed: " + ", ".join(errors))
+
+
+def map_path(app_path: str) -> tuple:
+    """Map an app API path to (category, invidious_path)."""
+
+    # /api/trending/music|gaming|news|movies
+    m = re.match(r"^/api/trending/(music|gaming|news|movies)(.*)", app_path, re.IGNORECASE)
+    if m:
+        type_name = m.group(1).lower()
+        rest = m.group(2) or ""
+        type_map = {"music": "Music", "gaming": "Gaming", "news": "News", "movies": "Movies"}
+        sep = "&" if "?" in rest else "?"
+        return f"trending_{type_name}", f"/api/v1/trending{rest}{sep}type={type_map[type_name]}"
+
+    # /api/stream/:id → video category → /api/v1/videos/:id
+    m = re.match(r"^/api/stream/([^?]+)(.*)", app_path)
+    if m:
+        return "video", f"/api/v1/videos/{m.group(1)}{m.group(2)}"
+
+    # /api/search/suggestions
+    if app_path.startswith("/api/search/suggestions"):
+        return "search_suggestions", "/api/v1/search/suggestions" + app_path[len("/api/search/suggestions"):]
+
+    # /api/channels/:id/<sub>
+    m = re.match(r"^/api/channels/([^/?]+)/(videos|shorts|streams|latest|playlists|comments|search)(.*)", app_path)
+    if m:
+        sub = m.group(2)
+        return f"channel_{sub}", f"/api/v1/channels/{m.group(1)}/{sub}{m.group(3)}"
+
+    # Simple prefix → category (more specific first)
+    prefix_map = [
+        ("/api/trending",    "trending"),
+        ("/api/search",      "search"),
+        ("/api/channels",    "channel"),
+        ("/api/videos",      "video"),
+        ("/api/playlists",   "playlist"),
+        ("/api/mixes",       "mix"),
+        ("/api/hashtag",     "hashtag"),
+        ("/api/comments",    "comments"),
+        ("/api/transcripts", "transcripts"),
+        ("/api/captions",    "captions"),
+        ("/api/annotations", "annotations"),
+        ("/api/clip",        "clip"),
+        ("/api/resolveurl",  "resolveurl"),
+        ("/api/popular",     "popular"),
+        ("/api/stats",       "stats"),
+    ]
+    for prefix, category in prefix_map:
+        if app_path.startswith(prefix):
+            return category, "/api/v1" + app_path[4:]
+
+    # Fallback
+    return "video", "/api/v1" + app_path[4:]
+
+
+# ── Proxy routes ──────────────────────────────────────────────────────────────
+
+@app.get("/proxy/main/{path:path}")
+async def proxy_main(path: str, request: Request):
+    try:
+        qs = str(request.query_params)
+        app_path = "/" + path + ("?" + qs if qs else "")
+        category, invidious_path = map_path(app_path)
+        result = await proxy_parallel(category, invidious_path)
+        return JSONResponse(result["data"])
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=502)
+
+
+@app.get("/proxy/stream/{path:path}")
+async def proxy_stream(path: str, request: Request):
+    try:
+        params = dict(request.query_params)
+        exclude_list = [s.strip() for s in params.pop("exclude", "").split(",") if s.strip()]
+        qs = urlencode(params) if params else ""
+        app_path = "/" + path + ("?" + qs if qs else "")
+        category, invidious_path = map_path(app_path)
+        result = await proxy_parallel(category, invidious_path, exclude_list)
+        headers = {}
+        if result.get("used_instance"):
+            headers["X-Instance-Used"] = result["used_instance"]
+        return JSONResponse(result["data"], headers=headers)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=502)
+
+
+@app.get("/download")
+async def download(url: str = Query(...), filename: str = Query(default="download")):
+    try:
+        req = http_client.build_request("GET", url)
+        upstream = await http_client.send(req, stream=True)
+        if not upstream.is_success:
+            raise Exception(f"HTTP {upstream.status_code}")
+
+        content_type = upstream.headers.get("content-type", "application/octet-stream")
+        content_length = upstream.headers.get("content-length")
+
+        response_headers = {
+            "Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename, safe='')}",
+            "Content-Type": content_type,
+        }
+        if content_length:
+            response_headers["Content-Length"] = content_length
+
+        async def stream_body():
+            async for chunk in upstream.aiter_bytes():
+                yield chunk
+            await upstream.aclose()
+
+        return StreamingResponse(stream_body(), headers=response_headers)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=502)
+
+
+CHANNEL_HOME_BASE = "https://choco-youtube-js.onrender.com"
+
+@app.get("/api/channel-home/{channel_id}")
+async def api_channel_home(channel_id: str):
+    try:
+        resp = await http_client.get(f"{CHANNEL_HOME_BASE}/channel/{channel_id}", timeout=15)
+        resp.raise_for_status()
+        return JSONResponse(resp.json())
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=502)
+
+
+@app.get("/api/instances")
+async def api_instances():
+    categories = [
+        "video", "search", "trending", "trending_music", "trending_gaming",
+        "trending_news", "trending_movies", "channel", "channel_videos",
+        "channel_shorts", "channel_streams", "channel_latest", "channel_playlists",
+        "channel_comments", "channel_search", "playlist", "mix", "hashtag",
+        "comments", "transcripts", "captions", "annotations", "clip",
+        "resolveurl", "popular", "stats", "search_suggestions", "search_filters",
+    ]
+    results = await asyncio.gather(
+        *[get_instances(cat) for cat in categories],
+        return_exceptions=True,
+    )
+    all_instances = {}
+    for cat, result in zip(categories, results):
+        if not isinstance(result, Exception):
+            all_instances[cat] = result
+    return JSONResponse({"all": all_instances})
+
+
+# ── HTML page routes ──────────────────────────────────────────────────────────
+
+@app.get("/dl")
+async def dl_page():
+    return FileResponse("public/dl.html")
+
+@app.get("/watch")
+async def watch_page():
+    return FileResponse("public/watch.html")
+
+@app.get("/search")
+async def search_page():
+    return FileResponse("public/search.html")
+
+@app.get("/channel")
+async def channel_page():
+    return FileResponse("public/channel.html")
+
+@app.get("/playlist")
+async def playlist_page():
+    return FileResponse("public/playlist.html")
+
+@app.get("/hashtag")
+async def hashtag_page():
+    return FileResponse("public/hashtag.html")
+
+@app.get("/mix")
+async def mix_page():
+    return FileResponse("public/mix.html")
+
+@app.get("/library")
+async def library_page():
+    return FileResponse("public/library.html")
+
+@app.get("/settings")
+async def settings_page():
+    return FileResponse("public/settings.html")
+
+
+# ── Static files & catch-all ─────────────────────────────────────────────────
+
+app.mount("/", StaticFiles(directory="public", html=True), name="static")
