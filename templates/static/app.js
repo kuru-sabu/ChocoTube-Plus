@@ -444,6 +444,26 @@ const LIB_SUBS_KEY = 'invtube_subs';
 const LIB_HIST_KEY = 'invtube_history';
 const LIB_HIST_MAX = 1000;
 
+const SEARCH_HIST_KEY = 'invtube_search_history';
+const SEARCH_HIST_MAX = 20;
+
+function getSearchHistory() {
+  try { return JSON.parse(localStorage.getItem(SEARCH_HIST_KEY) || '[]'); } catch { return []; }
+}
+
+function addSearchHistory(q) {
+  if (!q || !q.trim()) return;
+  const term = q.trim();
+  let hist = getSearchHistory().filter(h => h !== term);
+  hist.unshift(term);
+  if (hist.length > SEARCH_HIST_MAX) hist.length = SEARCH_HIST_MAX;
+  localStorage.setItem(SEARCH_HIST_KEY, JSON.stringify(hist));
+}
+
+function clearSearchHistory() {
+  localStorage.removeItem(SEARCH_HIST_KEY);
+}
+
 function getSubscriptions() {
   try { return JSON.parse(localStorage.getItem(LIB_SUBS_KEY) || '[]'); } catch { return []; }
 }
@@ -575,7 +595,7 @@ function removeFavorite(videoId) {
 const LIB_SETTINGS_KEY = 'invtube_settings';
 
 function getSettings() {
-  const defaults = { defaultSpeed: 1, loop: false, autoplayNext: false };
+  const defaults = { defaultSpeed: 1, loop: false, autoplayNext: false, defaultVolume: 100 };
   try { return { ...defaults, ...JSON.parse(localStorage.getItem(LIB_SETTINGS_KEY) || '{}') }; }
   catch { return defaults; }
 }
@@ -679,21 +699,58 @@ function initHeaderSearch(options) {
     } catch { return []; }
   }
 
+  const IC_SEARCH = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`;
+  const IC_HIST   = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="12 8 12 12 14 14"/><path d="M3.05 11a9 9 0 1 0 .5-3.5"/><polyline points="3 4 3 11 10 11"/></svg>`;
+
   function showSuggestions(items, q) {
     if (!suggestionList) return;
-    if (!items.length || !q) { suggestionList.hidden = true; return; }
+    if (!items.length) { suggestionList.hidden = true; return; }
     suggestionList.innerHTML = '';
     items.slice(0, 8).forEach(rawText => {
       const text = decodeHtml(rawText);
       const li = document.createElement('li');
       li.className = 'suggestion-item';
-      li.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><span class="suggest-text"></span>`;
+      li.innerHTML = `${q ? IC_SEARCH : IC_HIST}<span class="suggest-text"></span>`;
       li.querySelector('.suggest-text').textContent = text;
       li.addEventListener('mousedown', (e) => {
         e.preventDefault();
         searchInput.value = text;
         suggestionList.hidden = true;
+        addSearchHistory(text);
         onSubmit(text);
+      });
+      suggestionList.appendChild(li);
+    });
+    suggestionList.hidden = false;
+  }
+
+  function showHistorySuggestions() {
+    if (!suggestionList) return;
+    const hist = getSearchHistory();
+    if (!hist.length) { suggestionList.hidden = true; return; }
+    suggestionList.innerHTML = '';
+
+    const header = document.createElement('li');
+    header.className = 'suggest-history-header';
+    header.innerHTML = `<span>最近の検索</span><button class="suggest-clear-btn" type="button">すべて削除</button>`;
+    header.querySelector('.suggest-clear-btn').addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      clearSearchHistory();
+      suggestionList.hidden = true;
+    });
+    suggestionList.appendChild(header);
+
+    hist.slice(0, 8).forEach(term => {
+      const li = document.createElement('li');
+      li.className = 'suggestion-item';
+      li.innerHTML = `${IC_HIST}<span class="suggest-text"></span>`;
+      li.querySelector('.suggest-text').textContent = term;
+      li.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        searchInput.value = term;
+        suggestionList.hidden = true;
+        addSearchHistory(term);
+        onSubmit(term);
       });
       suggestionList.appendChild(li);
     });
@@ -764,13 +821,13 @@ function initHeaderSearch(options) {
     const q = searchInput.value.trim();
     if (!q) return;
     const resolved = await tryResolveUrl(q);
-    if (!resolved) onSubmit(q);
+    if (!resolved) { addSearchHistory(q); onSubmit(q); }
   });
 
   searchInput.addEventListener('input', () => {
     clearTimeout(suggestTimer);
     const q = searchInput.value.trim();
-    if (!q) { hideSuggestions(); return; }
+    if (!q) { showHistorySuggestions(); return; }
     suggestTimer = setTimeout(async () => {
       const items = await fetchSuggestions(q);
       showSuggestions(items, searchInput.value.trim());
@@ -808,6 +865,8 @@ function initHeaderSearch(options) {
         const items = await fetchSuggestions(q);
         showSuggestions(items, searchInput.value.trim());
       }, 100);
+    } else {
+      showHistorySuggestions();
     }
   });
 }
@@ -2413,7 +2472,11 @@ function setupQualities(formatStreams) {
 let hqActive = false;
 let hqSyncRemovers = [];
 let lastStreamSrc = '';
-let volState = { vol: 1, muted: false };
+let volState = (() => {
+  const s = getSettings();
+  const vol = Math.max(0, Math.min(1, (s.defaultVolume ?? 100) / 100));
+  return { vol, muted: false };
+})();
 let currentStreamData = null;
 let currentVideoMeta = null;
 let cachedInvInstance = null;
@@ -4423,11 +4486,23 @@ function initCustomControls() {
     btn.addEventListener('click', (e) => { e.stopPropagation(); setSpeed(btn.dataset.speed); });
   });
 
-  // Apply settings: default speed + loop
+  // Apply settings: default speed + loop + volume
   const _initSettings = getSettings();
   if (_initSettings.defaultSpeed !== 1) setSpeed(_initSettings.defaultSpeed);
-  // Disable loop in playlist/mix context so auto-advance works
   player.loop = listParam ? false : !!_initSettings.loop;
+  {
+    const initVol = Math.max(0, Math.min(1, (_initSettings.defaultVolume ?? 100) / 100));
+    const ae = audioEl();
+    ae.volume = initVol;
+    ae.muted = initVol === 0;
+    player.volume = initVol;
+    player.muted = initVol === 0;
+    volState.vol = initVol;
+    volState.muted = initVol === 0;
+    vcVol.value = initVol;
+    setSliderfill(vcVol);
+    updateVolUI();
+  }
 
   // ── Fullscreen ──
   function updateFsBtn() {
@@ -5543,6 +5618,8 @@ function initSettings() {
   const speedSelect       = document.getElementById('defaultSpeedSelect');
   const loopToggle        = document.getElementById('loopToggle');
   const autoplayToggle    = document.getElementById('autoplayNextToggle');
+  const volumeSlider      = document.getElementById('defaultVolumeSlider');
+  const volumeValue       = document.getElementById('defaultVolumeValue');
   const resetBtn          = document.getElementById('resetSettingsBtn');
   const clearHistBtn      = document.getElementById('clearHistBtn');
   const clearFavBtn       = document.getElementById('clearFavBtn');
@@ -5551,6 +5628,14 @@ function initSettings() {
   speedSelect.value     = String(settings.defaultSpeed);
   loopToggle.checked    = !!settings.loop;
   autoplayToggle.checked = !!settings.autoplayNext;
+  volumeSlider.value    = String(settings.defaultVolume ?? 100);
+  volumeValue.textContent = `${settings.defaultVolume ?? 100}%`;
+
+  function updateVolSliderFill() {
+    const pct = ((volumeSlider.value - volumeSlider.min) / (volumeSlider.max - volumeSlider.min)) * 100;
+    volumeSlider.style.setProperty('--fill', `${pct}%`);
+  }
+  updateVolSliderFill();
 
   let toastTimer = null;
   function showToast() {
@@ -5564,9 +5649,16 @@ function initSettings() {
       defaultSpeed: parseFloat(speedSelect.value),
       loop: loopToggle.checked,
       autoplayNext: autoplayToggle.checked,
+      defaultVolume: parseInt(volumeSlider.value, 10),
     });
     showToast();
   }
+
+  volumeSlider.addEventListener('input', () => {
+    volumeValue.textContent = `${volumeSlider.value}%`;
+    updateVolSliderFill();
+    persist();
+  });
 
   speedSelect.addEventListener('change', persist);
   loopToggle.addEventListener('change', () => {
@@ -5589,6 +5681,9 @@ function initSettings() {
     speedSelect.value = String(def.defaultSpeed);
     loopToggle.checked = def.loop;
     autoplayToggle.checked = def.autoplayNext;
+    volumeSlider.value = String(def.defaultVolume);
+    volumeValue.textContent = `${def.defaultVolume}%`;
+    updateVolSliderFill();
     showToast();
   });
 
