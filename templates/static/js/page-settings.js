@@ -69,7 +69,7 @@ function initSettings() {
 
   resetBtn.addEventListener('click', () => {
     if (!confirm('設定をすべてリセットしますか？')) return;
-    localStorage.removeItem('invtube_settings');
+    localStorage.removeItem('chocotube_settings');
     const def = getSettings();
     speedSelect.value = String(def.defaultSpeed);
     loopToggle.checked = def.loop;
@@ -88,7 +88,7 @@ function initSettings() {
 
   clearFavBtn.addEventListener('click', () => {
     if (!confirm('お気に入りをすべて削除しますか？')) return;
-    localStorage.removeItem('invtube_favorites');
+    localStorage.removeItem('chocotube_favorites');
     showToast();
   });
 }
