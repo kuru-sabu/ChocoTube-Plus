@@ -58,10 +58,11 @@ function renderMix(data) {
   const videos = data.videos || [];
   const title = data.title || 'ミックス';
 
-  document.title = `${title} — Inv-tube`;
+  document.title = `${title} — Choco-tube-plus`;
 
   const firstThumb = videos.length > 0 ? getThumbnailUrl(videos[0].videoId) : '';
 
+  const isFav = isFavoriteMix(mixId);
   header.innerHTML = `
     <div class="pl-header-wrap" style="max-width:1200px;margin:0 auto;padding:1.5rem 1.5rem 1rem;">
       <div class="pl-header-inner">
@@ -72,10 +73,38 @@ function renderMix(data) {
           <div class="pl-header-stats" style="margin-top:.6rem;color:var(--muted);font-size:.85rem;">
             ${videos.length}本の動画
           </div>
+          <button class="pl-fav-btn${isFav ? ' active' : ''}" id="mixFavBtn" title="お気に入りに追加" style="margin-top:.8rem;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${isFav ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            <span id="mixFavBtnLabel">${isFav ? 'お気に入り済み' : 'お気に入り'}</span>
+          </button>
         </div>
       </div>
     </div>
   `;
+
+  const favBtn = header.querySelector('#mixFavBtn');
+  if (favBtn) {
+    favBtn.addEventListener('click', () => {
+      const mixData = {
+        mixId,
+        title,
+        thumbnail: firstThumb,
+        videoCount: videos.length
+      };
+      const added = toggleFavoriteMix(mixData);
+      const svg = favBtn.querySelector('svg');
+      const label = favBtn.querySelector('#mixFavBtnLabel');
+      if (added) {
+        favBtn.classList.add('active');
+        if (svg) svg.setAttribute('fill', 'currentColor');
+        if (label) label.textContent = 'お気に入り済み';
+      } else {
+        favBtn.classList.remove('active');
+        if (svg) svg.setAttribute('fill', 'none');
+        if (label) label.textContent = 'お気に入り';
+      }
+    });
+  }
 
   if (!videos.length) {
     grid.innerHTML = `<div class="empty-state"><p>このミックスには動画がありません。</p></div>`;
