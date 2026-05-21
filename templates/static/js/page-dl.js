@@ -430,7 +430,7 @@ async function fetchAndRender(videoId) {
     const streamData = streamResult.data;
     const meta = videoResult.data;
     currentStreamData = streamData;
-    document.title = `${meta.title || '動画'} のダウンロード - Inv-tube`;
+    document.title = `${meta.title || '動画'} のダウンロード - Choco-tube-plus`;
 
     infoSk.setAttribute('hidden', '');
     infoIn.removeAttribute('hidden');
