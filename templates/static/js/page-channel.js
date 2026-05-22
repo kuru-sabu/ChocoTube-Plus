@@ -6,7 +6,6 @@ const channelId = params.get('id') || '';
 let channelInfo = null;
 let currentTab = 'videos';
 let continuation = null;
-let tabInstance = null;
 let isLoading = false;
 let chSearchPage = 1;
 let loadGen = 0;
@@ -453,7 +452,6 @@ async function loadTab(tab, reset = true) {
 
   if (reset) {
     continuation = null;
-    tabInstance = null;
     chSearchPage = 1;
   }
 
@@ -483,56 +481,46 @@ async function loadTab(tab, reset = true) {
     if (tab === 'videos') {
       const p = new URLSearchParams({ sort_by: sortVal });
       if (!reset && continuation) p.set('continuation', continuation);
-      if (!reset && tabInstance) p.set('_pin_instance', tabInstance);
       const raw = await fetchMain(`/api/channels/${encodeURIComponent(channelId)}/videos?${p}`);
       if (myGen !== loadGen) return;
-      if (reset) tabInstance = fetchMain.lastInstance;
-      items = (raw.videos || []).filter(v => v.videoId);
+      items = (raw.videos || []).filter(v => !v.errorMessage);
       newContinuation = raw.continuation || null;
 
     } else if (tab === 'shorts') {
       const p = new URLSearchParams();
       if (!reset && continuation) p.set('continuation', continuation);
-      if (!reset && tabInstance) p.set('_pin_instance', tabInstance);
       const raw = await fetchMain(`/api/channels/${encodeURIComponent(channelId)}/shorts?${p}`);
       if (myGen !== loadGen) return;
-      if (reset) tabInstance = fetchMain.lastInstance;
-      items = (raw.videos || []).filter(v => v.videoId);
+      items = (raw.videos || []).filter(v => !v.errorMessage);
       newContinuation = raw.continuation || null;
 
     } else if (tab === 'streams') {
       const p = new URLSearchParams();
       if (!reset && continuation) p.set('continuation', continuation);
-      if (!reset && tabInstance) p.set('_pin_instance', tabInstance);
       const raw = await fetchMain(`/api/channels/${encodeURIComponent(channelId)}/streams?${p}`);
       if (myGen !== loadGen) return;
-      if (reset) tabInstance = fetchMain.lastInstance;
-      items = (raw.videos || []).filter(v => v.videoId);
+      items = (raw.videos || []).filter(v => !v.errorMessage);
       newContinuation = raw.continuation || null;
 
     } else if (tab === 'latest') {
       const raw = await fetchMain(`/api/channels/${encodeURIComponent(channelId)}/latest`);
       if (myGen !== loadGen) return;
-      items = (Array.isArray(raw) ? raw : (raw.videos || [])).filter(v => v.videoId);
+      items = (Array.isArray(raw) ? raw : (raw.videos || [])).filter(v => !v.errorMessage);
       newContinuation = null;
 
     } else if (tab === 'playlists') {
       const p = new URLSearchParams();
       if (!reset && continuation) p.set('continuation', continuation);
-      if (!reset && tabInstance) p.set('_pin_instance', tabInstance);
       const raw = await fetchMain(`/api/channels/${encodeURIComponent(channelId)}/playlists?${p}`);
       if (myGen !== loadGen) return;
-      if (reset) tabInstance = fetchMain.lastInstance;
       items = (raw.playlists || []).filter(pl => pl.playlistId);
       newContinuation = raw.continuation || null;
 
     } else if (tab === 'community') {
       const p = new URLSearchParams();
       if (!reset && continuation) p.set('continuation', continuation);
-      if (!reset && tabInstance) p.set('_pin_instance', tabInstance);
       const raw = await fetchMain(`/api/channels/${encodeURIComponent(channelId)}/comments?${p}`);
       if (myGen !== loadGen) return;
-      if (reset) tabInstance = fetchMain.lastInstance;
       const posts = raw.comments || [];
       newContinuation = raw.continuation || null;
 
@@ -561,7 +549,6 @@ async function loadTab(tab, reset = true) {
       grid.innerHTML = `<div class="empty-state"><p>コンテンツが見つかりませんでした。</p></div>`;
     } else {
       if (tab === 'playlists') {
-        grid.classList.remove('shorts-mode');
         items.forEach(item => grid.appendChild(createChannelPlaylistCard(item)));
       } else {
         const isShortTab = tab === 'shorts';
