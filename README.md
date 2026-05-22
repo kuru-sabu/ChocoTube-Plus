@@ -8,7 +8,8 @@ Ytdlp-Apiは今度追加していく予定
 - Google Chrome環境で使えなかったバグ修正
 - 音声のみ映像のみ再生の追加
 - チャンネルページバグの修正(動画タブでのinvidiousのバグをinnertubeのフォールバックで対応)
-- 　ライブラリの機能の追加
+- ライブラリの一部機能の追加
+- その他バグ修正
 ### Ver.1.01
 - 5/21 codesandbox railway vercelデプロイ対応
 ### Ver.1.00
