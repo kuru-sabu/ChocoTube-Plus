@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 INVIDIOUS_BASE = "https://raw.githubusercontent.com/kuru-bana/yt-data/main/invidious"
+INNERTUBE_BASE = "https://choco-youtube-js.onrender.com"
 CACHE_TTL = 5 * 60
 
 category_cache: dict = {}
@@ -41,13 +42,23 @@ async def get_instances(category: str) -> list:
     cached = category_cache.get(category)
     if cached and now - cached["time"] < CACHE_TTL:
         return cached["instances"]
-    client = await get_client()
-    resp = await client.get(f"{INVIDIOUS_BASE}/{category}.json")
-    resp.raise_for_status()
-    data = resp.json()
-    instances = data.get("working_instances", [])
-    if instances:
-        category_cache[category] = {"instances": instances, "time": now}
+    try:
+        client = await get_client()
+        resp = await client.get(f"{INVIDIOUS_BASE}/{category}.json", timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+        instances = data.get("working_instances", [])
+    except Exception:
+        # Fetch failed — return stale cache rather than caching an error
+        if cached:
+            return cached["instances"]
+        raise
+    if not instances:
+        # Empty list — don't cache it, return stale cache if available
+        if cached:
+            return cached["instances"]
+        return []
+    category_cache[category] = {"instances": instances, "time": now}
     return instances
 
 
@@ -58,7 +69,117 @@ async def _try_instance(base: str, invidious_path: str) -> dict:
     return {"data": resp.json(), "used_instance": base}
 
 
-async def proxy_parallel(category: str, invidious_path: str, exclude_list: list = None) -> dict:
+def _has_valid_videos(data) -> bool:
+    """Return True if response contains at least one non-parse-error video item."""
+    items = data if isinstance(data, list) else data.get("videos", [])
+    return any(not item.get("errorMessage") and (item.get("videoId") or item.get("title")) for item in items)
+
+
+def _extract_innertube_videos(data: dict) -> list:
+    """Parse innertube channel tab response into [{videoId, title}] list."""
+    result = []
+    contents = data.get("current_tab", {}).get("content", {}).get("contents", [])
+    for item in contents:
+        if not isinstance(item, dict):
+            continue
+        lv = item.get("content", {})
+        if not isinstance(lv, dict) or lv.get("content_type") != "VIDEO":
+            continue
+        video_id = lv.get("content_id")
+        if not video_id:
+            continue
+        title_obj = lv.get("metadata", {}).get("title", {})
+        title = title_obj.get("text", "") if isinstance(title_obj, dict) else str(title_obj)
+        result.append({"videoId": video_id, "title": title})
+    return result
+
+
+async def fetch_innertube_videos(channel_id: str, tab: str) -> list:
+    """Fetch videos from innertube API for the given channel tab."""
+    tab_map = {"videos": "videos", "shorts": "shorts", "streams": "live", "latest": "videos"}
+    innertube_tab = tab_map.get(tab, "videos")
+    try:
+        client = await get_client()
+        resp = await client.get(
+            f"{INNERTUBE_BASE}/channel/{channel_id}/{innertube_tab}",
+            timeout=httpx.Timeout(30.0),
+        )
+        resp.raise_for_status()
+        return _extract_innertube_videos(resp.json())
+    except Exception:
+        return []
+
+
+def _innertube_to_invidious(innertube_items: list, channel_id: str = "") -> list:
+    """Convert innertube video items to Invidious-compatible format."""
+    return [
+        {
+            "videoId": item["videoId"],
+            "title": item["title"],
+            "author": "",
+            "authorId": channel_id,
+            "lengthSeconds": 0,
+            "viewCount": 0,
+            "publishedText": "",
+            "authorThumbnails": [],
+        }
+        for item in innertube_items
+    ]
+
+
+def _apply_enrichment(data, innertube_items: list, channel_id: str):
+    """
+    Apply innertube enrichment to Invidious channel tab data (no network calls).
+    - Full fallback: if Invidious returned no valid items, replace entirely with innertube data.
+    - Partial enrichment: match items by title and fill in missing videoIds.
+    """
+    if not innertube_items:
+        return data
+
+    is_list = isinstance(data, list)
+    items = data if is_list else data.get("videos", [])
+
+    valid_items = [v for v in items if not v.get("errorMessage")]
+    items_needing_id = [v for v in valid_items if not v.get("videoId") and v.get("title")]
+
+    if not items_needing_id and valid_items:
+        return data
+
+    if not valid_items:
+        fallback = _innertube_to_invidious(innertube_items, channel_id)
+        return fallback if is_list else {"videos": fallback, "continuation": None}
+
+    title_map: dict = {}
+    for iv in innertube_items:
+        t = iv.get("title", "").strip()
+        vid = iv.get("videoId")
+        if t and vid:
+            title_map[t] = vid
+            for length in (80, 60, 40, 20):
+                if len(t) >= length:
+                    title_map[t[:length]] = vid
+
+    for item in items_needing_id:
+        title = item.get("title", "").strip()
+        vid = title_map.get(title)
+        if not vid:
+            for length in (80, 60, 40, 20):
+                vid = title_map.get(title[:length])
+                if vid:
+                    break
+        if not vid:
+            for k, v in title_map.items():
+                min_len = min(len(k), len(title), 25)
+                if min_len >= 15 and k[:min_len] == title[:min_len]:
+                    vid = v
+                    break
+        if vid:
+            item["videoId"] = vid
+
+    return data
+
+
+async def proxy_parallel(category: str, invidious_path: str, exclude_list: list = None, prefer_valid_videos: bool = False) -> dict:
     instances = await get_instances(category)
     if exclude_list:
         instances = [b for b in instances if not any(ex in b or b in ex for ex in exclude_list)]
@@ -69,14 +190,24 @@ async def proxy_parallel(category: str, invidious_path: str, exclude_list: list 
     errors = []
     pending = set(tasks)
     winner = None
+    fallback = None
     try:
         while pending:
             done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
             for task in done:
                 exc = task.exception()
-                if exc is None and winner is None:
-                    winner = task.result()
-                elif exc is not None:
+                if exc is None:
+                    result = task.result()
+                    if prefer_valid_videos:
+                        if _has_valid_videos(result["data"]):
+                            if winner is None:
+                                winner = result
+                        else:
+                            if fallback is None:
+                                fallback = result
+                    elif winner is None:
+                        winner = result
+                else:
                     errors.append(str(exc))
             if winner is not None:
                 break
@@ -86,8 +217,11 @@ async def proxy_parallel(category: str, invidious_path: str, exclude_list: list 
         if pending:
             await asyncio.gather(*pending, return_exceptions=True)
 
-    if winner is not None:
-        return winner
+    best = winner or fallback
+    if best is not None:
+        return best
+    # All instances failed — evict the cache so the next request fetches a fresh list
+    category_cache.pop(category, None)
     raise Exception("All instances failed: " + ", ".join(errors))
 
 
@@ -149,22 +283,44 @@ def map_path(app_path: str) -> tuple:
 
 # ── Proxy routes ──────────────────────────────────────────────────────────────
 
+CHANNEL_VIDEO_CATEGORIES = {"channel_videos", "channel_shorts", "channel_streams", "channel_latest"}
+_CH_TAB_RE = re.compile(r"^/api/channels/([^/?]+)/(videos|shorts|streams|latest)")
+
 @app.get("/proxy/main/{path:path}")
 async def proxy_main(path: str, request: Request):
+    qs = request.url.query
+    app_path = "/" + path + ("?" + qs if qs else "")
+    category, invidious_path = map_path(app_path)
+    prefer_valid = category in CHANNEL_VIDEO_CATEGORIES
+
+    ch_match = _CH_TAB_RE.match(app_path) if category in CHANNEL_VIDEO_CATEGORIES else None
+    channel_id = ch_match.group(1) if ch_match else None
+    tab = ch_match.group(2) if ch_match else None
+
+    if ch_match:
+        # Run Invidious and innertube concurrently so innertube cold-start doesn't block
+        invidious_task = asyncio.create_task(
+            proxy_parallel(category, invidious_path, prefer_valid_videos=True)
+        )
+        innertube_task = asyncio.create_task(fetch_innertube_videos(channel_id, tab))
+        results = await asyncio.gather(invidious_task, innertube_task, return_exceptions=True)
+        inv_result, innertube_items = results[0], results[1]
+
+        if isinstance(innertube_items, Exception):
+            innertube_items = []
+
+        if isinstance(inv_result, Exception):
+            if innertube_items:
+                fallback = _innertube_to_invidious(innertube_items, channel_id)
+                return JSONResponse(fallback if tab == "latest" else {"videos": fallback, "continuation": None})
+            return JSONResponse({"error": str(inv_result)}, status_code=502)
+
+        data = _apply_enrichment(inv_result["data"], innertube_items, channel_id)
+        return JSONResponse(data)
+
     try:
-        params = dict(request.query_params)
-        pin_instance = params.pop("_pin_instance", None)
-        qs = urlencode(params) if params else ""
-        app_path = "/" + path + ("?" + qs if qs else "")
-        category, invidious_path = map_path(app_path)
-        if pin_instance:
-            result = await _try_instance(pin_instance.rstrip("/"), invidious_path)
-        else:
-            result = await proxy_parallel(category, invidious_path)
-        headers = {}
-        if result.get("used_instance"):
-            headers["X-Instance-Used"] = result["used_instance"]
-        return JSONResponse(result["data"], headers=headers)
+        result = await proxy_parallel(category, invidious_path)
+        return JSONResponse(result["data"])
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=502)
 
