@@ -14,19 +14,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// ── 再生位置の保存・取得ヘルパー ──
-const _POS_KEY_PREFIX = 'watch_pos_';
-function getSavedPosition(videoId) {
-  try { return parseFloat(localStorage.getItem(_POS_KEY_PREFIX + videoId) || '0') || 0; }
-  catch (e) { return 0; }
-}
-function savePosition(videoId, t) {
-  try { localStorage.setItem(_POS_KEY_PREFIX + videoId, String(t)); } catch (e) {}
-}
-function clearSavedPosition(videoId) {
-  try { localStorage.removeItem(_POS_KEY_PREFIX + videoId); } catch (e) {}
-}
-
 function showWatchError(msg, isHome) {
   const main = document.getElementById('watchMain');
   main.innerHTML = `
@@ -860,26 +847,34 @@ function initModeBar(videoId) {
 }
 
 async function tryAutoplay(videoEl, audioEl) {
-  try {
+  async function _doPlay() {
     if (audioEl) {
-      await Promise.all([videoEl.play(), audioEl.play()]);
-    } else {
-      await videoEl.play();
+      return Promise.all([videoEl.play(), audioEl.play()]);
     }
+    return videoEl.play();
+  }
+  try {
+    await _doPlay();
     return;
   } catch (e) {
-    if (e.name !== 'NotAllowedError') return;
+    if (e.name === 'AbortError') {
+      await new Promise(r => setTimeout(r, 120));
+      try {
+        await _doPlay();
+        return;
+      } catch (e2) {
+        if (e2.name !== 'NotAllowedError') return;
+      }
+    } else if (e.name !== 'NotAllowedError') {
+      return;
+    }
   }
   videoEl.muted = true;
   if (audioEl) audioEl.muted = true;
   try {
-    if (audioEl) {
-      await Promise.all([videoEl.play(), audioEl.play()]);
-    } else {
-      await videoEl.play();
-    }
+    await _doPlay();
     videoEl.dispatchEvent(new CustomEvent('autoplay-muted', { detail: { hasAudio: !!audioEl } }));
-  } catch (e) {}
+  } catch (_) {}
 }
 
 function setupStreamOnlyBtns() {
