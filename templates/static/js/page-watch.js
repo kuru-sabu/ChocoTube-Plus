@@ -254,6 +254,10 @@ let _iframeStartWall   = 0;   // iframe 起動時のタイムスタンプ（フ�
 let _iframeEl          = null; // 現在アクティブな iframe 要素
 let _iframePolling     = null; // setInterval の ID
 let _iframeDuration    = 0;   // iframe 動画の尺（onStateChange duration補完用）
+let _iframePlayerState = -1;  // -1=未知, 1=再生中, 2=一時停止, 0=終了
+let _iframeVolume      = 100; // iframe 音量 (0-100)
+let _iframeMuted       = false; // iframe ミュート状態
+let _iframeRate        = 1;   // iframe 再生速度
 let _clipStartSec      = -1;  // 再生区間: 開始秒 (-1 = 未設定)
 let _clipEndSec        = -1;  // 再生区間: 終了秒 (-1 = 未設定)
 
@@ -296,8 +300,12 @@ window.addEventListener('message', function(e) {
       // duration を補完
       const _dur = data.info && data.info.duration;
       if (typeof _dur === 'number' && isFinite(_dur) && _dur > 0) _iframeDuration = _dur;
+      // playerState を補完（YouTube は infoDelivery にも playerState を含む）
+      const _ps = data.info && data.info.playerState;
+      if (typeof _ps === 'number' && _ps >= 0) _iframePlayerState = _ps;
     } else if (data.event === 'onStateChange') {
       const _state = data.info;
+      _iframePlayerState = _state;
       // info=0: 自然終了 / info=2: 一時停止（終端付近でYouTubeがpauseを送る場合あり）
       if (_state === 0 || _state === 2) {
         const isEnded = _state === 0;
@@ -352,6 +360,11 @@ function stopIframeTracking() {
   _iframeCurrentTime = 0;
   _iframeStartSec    = 0;
   _iframeStartWall   = 0;
+  _iframeDuration    = 0;
+  _iframePlayerState = -1;
+  _iframeVolume      = 100;
+  _iframeMuted       = false;
+  _iframeRate        = 1;
 }
 
 function getIframeCurrentTime() {
@@ -3009,23 +3022,48 @@ function initCustomControls() {
     if (!panel) return;
     panel.innerHTML = '';
     const streamActive = !player.hidden;
+    const isIframe = isExternalEmbedModeActive();
     const sections = [
       {
         heading: '再生',
         items: [
-          { keys: 'Space / K', label: '再生 / 一時停止', stream: true,  fn: () => vcPlay.click() },
-          { keys: '← / J',     label: '5秒戻る',         stream: true,  fn: () => doSkip(-5) },
-          { keys: '→ / L',     label: '5秒進む',         stream: true,  fn: () => doSkip(5) },
-          { keys: 'Shift+←/J', label: '10秒戻る',        stream: true,  fn: () => doSkip(-10) },
-          { keys: 'Shift+→/L', label: '10秒進む',        stream: true,  fn: () => doSkip(10) },
+          { keys: 'Space / K', label: '再生 / 一時停止', stream: false, fn: () => {
+            if (isIframe) { if (_iframePlayerState === 1) _sendIframeCmd('pauseVideo', []); else _sendIframeCmd('playVideo', []); }
+            else vcPlay.click();
+          }},
+          { keys: '← / J',     label: '5秒戻る',  stream: false, fn: () => {
+            if (isIframe) _sendIframeCmd('seekTo', [Math.max(0, getIframeCurrentTime() - 5), true]);
+            else doSkip(-5);
+          }},
+          { keys: '→ / L',     label: '5秒進む',  stream: false, fn: () => {
+            if (isIframe) _sendIframeCmd('seekTo', [getIframeCurrentTime() + 5, true]);
+            else doSkip(5);
+          }},
+          { keys: 'Shift+←/J', label: '10秒戻る', stream: false, fn: () => {
+            if (isIframe) _sendIframeCmd('seekTo', [Math.max(0, getIframeCurrentTime() - 10), true]);
+            else doSkip(-10);
+          }},
+          { keys: 'Shift+→/L', label: '10秒進む', stream: false, fn: () => {
+            if (isIframe) _sendIframeCmd('seekTo', [getIframeCurrentTime() + 10, true]);
+            else doSkip(10);
+          }},
         ],
       },
       {
         heading: '音量',
         items: [
-          { keys: '↑', label: '音量を上げる', stream: true, fn: () => { vcVol.value = Math.min(1, parseFloat(vcVol.value) + 0.1).toFixed(2); vcVol.dispatchEvent(new Event('input')); showCtrls(); } },
-          { keys: '↓', label: '音量を下げる', stream: true, fn: () => { vcVol.value = Math.max(0, parseFloat(vcVol.value) - 0.1).toFixed(2); vcVol.dispatchEvent(new Event('input')); showCtrls(); } },
-          { keys: 'M',  label: 'ミュート切替', stream: true, fn: () => vcMute.click() },
+          { keys: '↑', label: '音量を上げる', stream: false, fn: () => {
+            if (isIframe) { _iframeVolume = Math.min(100, _iframeVolume + 10); _sendIframeCmd('setVolume', [_iframeVolume]); }
+            else { vcVol.value = Math.min(1, parseFloat(vcVol.value) + 0.1).toFixed(2); vcVol.dispatchEvent(new Event('input')); showCtrls(); }
+          }},
+          { keys: '↓', label: '音量を下げる', stream: false, fn: () => {
+            if (isIframe) { _iframeVolume = Math.max(0, _iframeVolume - 10); _sendIframeCmd('setVolume', [_iframeVolume]); }
+            else { vcVol.value = Math.max(0, parseFloat(vcVol.value) - 0.1).toFixed(2); vcVol.dispatchEvent(new Event('input')); showCtrls(); }
+          }},
+          { keys: 'M', label: 'ミュート切替', stream: false, fn: () => {
+            if (isIframe) { _iframeMuted = !_iframeMuted; _sendIframeCmd(_iframeMuted ? 'mute' : 'unMute', []); }
+            else vcMute.click();
+          }},
         ],
       },
       {
@@ -3039,10 +3077,16 @@ function initCustomControls() {
       {
         heading: 'フレーム・速度',
         items: [
-          { keys: ',', label: '1フレーム戻る',   stream: true, fn: () => { player.pause(); player.currentTime = Math.max(0, player.currentTime - FPS); } },
-          { keys: '.', label: '1フレーム進む',   stream: true, fn: () => { player.pause(); player.currentTime = Math.min(player.duration || 0, player.currentTime + FPS); } },
-          { keys: '<', label: '再生速度を下げる', stream: true, fn: () => { const i2 = SPEEDS.indexOf(currentSpeed); if (i2 > 0) setSpeed(SPEEDS[i2 - 1]); } },
-          { keys: '>', label: '再生速度を上げる', stream: true, fn: () => { const i2 = SPEEDS.indexOf(currentSpeed); if (i2 < SPEEDS.length - 1) setSpeed(SPEEDS[i2 + 1]); } },
+          { keys: ',', label: '1フレーム戻る',   stream: true,  fn: () => { player.pause(); player.currentTime = Math.max(0, player.currentTime - FPS); } },
+          { keys: '.', label: '1フレーム進む',   stream: true,  fn: () => { player.pause(); player.currentTime = Math.min(player.duration || 0, player.currentTime + FPS); } },
+          { keys: '<', label: '再生速度を下げる', stream: false, fn: () => {
+            if (isIframe) { const ii = SPEEDS.indexOf(_iframeRate); const ni = ii > 0 ? ii - 1 : 0; _iframeRate = SPEEDS[ni]; _sendIframeCmd('setPlaybackRate', [_iframeRate]); }
+            else { const i2 = SPEEDS.indexOf(currentSpeed); if (i2 > 0) setSpeed(SPEEDS[i2 - 1]); }
+          }},
+          { keys: '>', label: '再生速度を上げる', stream: false, fn: () => {
+            if (isIframe) { const ii = SPEEDS.indexOf(_iframeRate); const ni = ii < SPEEDS.length - 1 ? ii + 1 : ii; _iframeRate = SPEEDS[ni]; _sendIframeCmd('setPlaybackRate', [_iframeRate]); }
+            else { const i2 = SPEEDS.indexOf(currentSpeed); if (i2 < SPEEDS.length - 1) setSpeed(SPEEDS[i2 + 1]); }
+          }},
         ],
       },
       {
@@ -3051,8 +3095,11 @@ function initCustomControls() {
         items: Array.from({ length: 10 }, (_, n) => ({
           keys: String(n),
           label: `${n * 10}%`,
-          stream: true,
-          fn: () => { if (player.duration) { player.currentTime = player.duration * (n / 10); showCtrls(); } },
+          stream: false,
+          fn: () => {
+            if (isIframe) { if (_iframeDuration > 0) _sendIframeCmd('seekTo', [_iframeDuration * (n / 10), true]); }
+            else { if (player.duration) { player.currentTime = player.duration * (n / 10); showCtrls(); } }
+          },
         })),
       },
     ];
@@ -3127,27 +3174,70 @@ function initCustomControls() {
       return;
     }
     if (e.key === 't' || e.key === 'T') { toggleTheater(); return; }
+
+    // ── iframeモード: postMessage 経由で制御 ──
+    if (isExternalEmbedModeActive()) {
+      switch (e.key) {
+        case ' ': case 'k': case 'K':
+          e.preventDefault();
+          if (_iframePlayerState === 1) _sendIframeCmd('pauseVideo', []); else _sendIframeCmd('playVideo', []);
+          break;
+        case 'ArrowLeft': case 'j': case 'J':
+          e.preventDefault();
+          _sendIframeCmd('seekTo', [Math.max(0, getIframeCurrentTime() - (e.shiftKey ? 10 : 5)), true]);
+          break;
+        case 'ArrowRight': case 'l': case 'L':
+          e.preventDefault();
+          _sendIframeCmd('seekTo', [getIframeCurrentTime() + (e.shiftKey ? 10 : 5), true]);
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          _iframeVolume = Math.min(100, _iframeVolume + 10);
+          _sendIframeCmd('setVolume', [_iframeVolume]);
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          _iframeVolume = Math.max(0, _iframeVolume - 10);
+          _sendIframeCmd('setVolume', [_iframeVolume]);
+          break;
+        case 'm': case 'M':
+          _iframeMuted = !_iframeMuted;
+          _sendIframeCmd(_iframeMuted ? 'mute' : 'unMute', []);
+          break;
+        case '<':
+          e.preventDefault();
+          { const ii = SPEEDS.indexOf(_iframeRate); const ni = ii > 0 ? ii - 1 : 0; _iframeRate = SPEEDS[ni]; _sendIframeCmd('setPlaybackRate', [_iframeRate]); }
+          break;
+        case '>':
+          e.preventDefault();
+          { const ii = SPEEDS.indexOf(_iframeRate); const ni = ii < SPEEDS.length - 1 ? ii + 1 : ii; _iframeRate = SPEEDS[ni]; _sendIframeCmd('setPlaybackRate', [_iframeRate]); }
+          break;
+        case '?':
+          e.preventDefault();
+          showKbModal();
+          break;
+        default:
+          if (e.key >= '0' && e.key <= '9' && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+            const pct = parseInt(e.key) / 10;
+            if (_iframeDuration > 0) _sendIframeCmd('seekTo', [_iframeDuration * pct, true]);
+          }
+      }
+      return;
+    }
+
     if (player.hidden) return;
 
+    // ── ストリーム / HQ モード: 直接制御 ──
     switch (e.key) {
-      case ' ':
-      case 'k': case 'K':
+      case ' ': case 'k': case 'K':
         e.preventDefault();
         vcPlay.click();
         break;
-      case 'ArrowLeft':
+      case 'ArrowLeft': case 'j': case 'J':
         e.preventDefault();
         doSkip(e.shiftKey ? -10 : -5);
         break;
-      case 'j': case 'J':
-        e.preventDefault();
-        doSkip(e.shiftKey ? -10 : -5);
-        break;
-      case 'ArrowRight':
-        e.preventDefault();
-        doSkip(e.shiftKey ? 10 : 5);
-        break;
-      case 'l': case 'L':
+      case 'ArrowRight': case 'l': case 'L':
         e.preventDefault();
         doSkip(e.shiftKey ? 10 : 5);
         break;
@@ -3170,9 +3260,6 @@ function initCustomControls() {
       case 'f': case 'F':
         vcFs.click();
         break;
-      case 't': case 'T':
-        toggleTheater();
-        break;
       case 'p': case 'P':
         togglePiP();
         break;
@@ -3188,13 +3275,11 @@ function initCustomControls() {
         break;
       case '<':
         e.preventDefault();
-        { const idx = SPEEDS.indexOf(currentSpeed);
-          if (idx > 0) setSpeed(SPEEDS[idx - 1]); }
+        { const idx = SPEEDS.indexOf(currentSpeed); if (idx > 0) setSpeed(SPEEDS[idx - 1]); }
         break;
       case '>':
         e.preventDefault();
-        { const idx = SPEEDS.indexOf(currentSpeed);
-          if (idx < SPEEDS.length - 1) setSpeed(SPEEDS[idx + 1]); }
+        { const idx = SPEEDS.indexOf(currentSpeed); if (idx < SPEEDS.length - 1) setSpeed(SPEEDS[idx + 1]); }
         break;
       case '?':
         e.preventDefault();
