@@ -3003,6 +3003,120 @@ function initCustomControls() {
     if (e.target === kbBackdrop) hideKbModal();
   });
 
+  // ── Tool panel ──
+  function buildPcToolPanel() {
+    const panel = document.getElementById('pcToolPanel');
+    if (!panel) return;
+    panel.innerHTML = '';
+    const streamActive = !player.hidden;
+    const sections = [
+      {
+        heading: '再生',
+        items: [
+          { keys: 'Space / K', label: '再生 / 一時停止', stream: true,  fn: () => vcPlay.click() },
+          { keys: '← / J',     label: '5秒戻る',         stream: true,  fn: () => doSkip(-5) },
+          { keys: '→ / L',     label: '5秒進む',         stream: true,  fn: () => doSkip(5) },
+          { keys: 'Shift+←/J', label: '10秒戻る',        stream: true,  fn: () => doSkip(-10) },
+          { keys: 'Shift+→/L', label: '10秒進む',        stream: true,  fn: () => doSkip(10) },
+        ],
+      },
+      {
+        heading: '音量',
+        items: [
+          { keys: '↑', label: '音量を上げる', stream: true, fn: () => { vcVol.value = Math.min(1, parseFloat(vcVol.value) + 0.1).toFixed(2); vcVol.dispatchEvent(new Event('input')); showCtrls(); } },
+          { keys: '↓', label: '音量を下げる', stream: true, fn: () => { vcVol.value = Math.max(0, parseFloat(vcVol.value) - 0.1).toFixed(2); vcVol.dispatchEvent(new Event('input')); showCtrls(); } },
+          { keys: 'M',  label: 'ミュート切替', stream: true, fn: () => vcMute.click() },
+        ],
+      },
+      {
+        heading: '画面',
+        items: [
+          { keys: 'F', label: 'フルスクリーン',           stream: true,  fn: () => vcFs.click() },
+          { keys: 'T', label: 'シアターモード',           stream: false, fn: () => toggleTheater() },
+          { keys: 'P', label: 'ピクチャーインピクチャー', stream: true,  fn: () => togglePiP() },
+        ],
+      },
+      {
+        heading: 'フレーム・速度',
+        items: [
+          { keys: ',', label: '1フレーム戻る',   stream: true, fn: () => { player.pause(); player.currentTime = Math.max(0, player.currentTime - FPS); } },
+          { keys: '.', label: '1フレーム進む',   stream: true, fn: () => { player.pause(); player.currentTime = Math.min(player.duration || 0, player.currentTime + FPS); } },
+          { keys: '<', label: '再生速度を下げる', stream: true, fn: () => { const i2 = SPEEDS.indexOf(currentSpeed); if (i2 > 0) setSpeed(SPEEDS[i2 - 1]); } },
+          { keys: '>', label: '再生速度を上げる', stream: true, fn: () => { const i2 = SPEEDS.indexOf(currentSpeed); if (i2 < SPEEDS.length - 1) setSpeed(SPEEDS[i2 + 1]); } },
+        ],
+      },
+      {
+        heading: 'ジャンプ (0〜9)',
+        grid: true,
+        items: Array.from({ length: 10 }, (_, n) => ({
+          keys: String(n),
+          label: `${n * 10}%`,
+          stream: true,
+          fn: () => { if (player.duration) { player.currentTime = player.duration * (n / 10); showCtrls(); } },
+        })),
+      },
+    ];
+    sections.forEach((sec, si) => {
+      if (si > 0) { const d = document.createElement('div'); d.className = 'pc-tool-divider'; panel.appendChild(d); }
+      const h = document.createElement('div');
+      h.className = 'pc-tool-heading';
+      h.textContent = sec.heading;
+      panel.appendChild(h);
+      if (sec.grid) {
+        const grid = document.createElement('div');
+        grid.className = 'pc-tool-grid';
+        sec.items.forEach(item => {
+          const avail = !item.stream || streamActive;
+          const btn = document.createElement('button');
+          btn.className = 'pc-tool-grid-btn';
+          btn.disabled = !avail;
+          btn.title = item.label;
+          const kbd = document.createElement('kbd'); kbd.className = 'pc-tool-key'; kbd.textContent = item.keys;
+          const lbl = document.createElement('span'); lbl.textContent = item.label;
+          btn.appendChild(kbd); btn.appendChild(lbl);
+          if (avail) btn.addEventListener('click', () => { closePcToolPanel(); item.fn(); });
+          grid.appendChild(btn);
+        });
+        panel.appendChild(grid);
+      } else {
+        sec.items.forEach(item => {
+          const avail = !item.stream || streamActive;
+          const btn = document.createElement('button');
+          btn.className = 'pc-tool-item';
+          btn.disabled = !avail;
+          const kbd = document.createElement('kbd'); kbd.className = 'pc-tool-key'; kbd.textContent = item.keys;
+          const lbl = document.createElement('span'); lbl.textContent = item.label;
+          btn.appendChild(kbd); btn.appendChild(lbl);
+          if (avail) btn.addEventListener('click', () => { closePcToolPanel(); item.fn(); });
+          panel.appendChild(btn);
+        });
+      }
+    });
+  }
+  function openPcToolPanel() {
+    buildPcToolPanel();
+    const panel = document.getElementById('pcToolPanel');
+    if (panel) panel.hidden = false;
+    document.getElementById('pcToolBtn')?.classList.add('active');
+  }
+  function closePcToolPanel() {
+    const panel = document.getElementById('pcToolPanel');
+    if (panel) panel.hidden = true;
+    document.getElementById('pcToolBtn')?.classList.remove('active');
+  }
+  const pcToolBtn = document.getElementById('pcToolBtn');
+  if (pcToolBtn) {
+    pcToolBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      const panel = document.getElementById('pcToolPanel');
+      if (!panel || panel.hidden) openPcToolPanel(); else closePcToolPanel();
+    });
+    document.addEventListener('click', e => {
+      const wrap = document.getElementById('pcToolWrap');
+      if (wrap && !wrap.contains(e.target)) closePcToolPanel();
+    });
+  }
+
   // ── Keyboard shortcuts ──
   const FPS = 1 / 30;
   document.addEventListener('keydown', (e) => {
@@ -3012,6 +3126,7 @@ function initCustomControls() {
       if (e.key === 'Escape' || e.key === '?') { hideKbModal(); e.preventDefault(); }
       return;
     }
+    if (e.key === 't' || e.key === 'T') { toggleTheater(); return; }
     if (player.hidden) return;
 
     switch (e.key) {
