@@ -471,6 +471,15 @@ function showCopyToast(msg = 'URLをコピーしました') {
 
 function buildSearchUrl(params) {
   const url = new URL('/search', location.origin);
+  if (typeof getSettings === 'function') {
+    const s = getSettings();
+    if (s.searchSort && s.searchSort !== 'relevance') url.searchParams.set('sort_by', s.searchSort);
+    if (s.searchDate)                                  url.searchParams.set('date', s.searchDate);
+    if (s.searchDuration)                              url.searchParams.set('duration', s.searchDuration);
+    if (s.searchType && s.searchType !== 'all')        url.searchParams.set('type', s.searchType);
+    if (s.searchFeatures)                              url.searchParams.set('features', s.searchFeatures);
+    if (s.searchRegion && s.searchRegion !== 'JP')     url.searchParams.set('region', s.searchRegion);
+  }
   Object.entries(params).forEach(([k, v]) => {
     if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, v);
   });
