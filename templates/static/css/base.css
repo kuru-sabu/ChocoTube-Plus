@@ -18,6 +18,10 @@
   --glow-cyan: rgba(6, 182, 212, 0.35);
   --skeleton-base: rgba(22, 14, 58, 0.9);
   --skeleton-shine: rgba(45, 28, 100, 0.9);
+  --accent-rgb: 124, 58, 237;
+  --accent2-rgb: 139, 92, 246;
+  --cyan-rgb: 6, 182, 212;
+  --accent-glow-rgb: 167, 139, 250;
 }
 
 html { scroll-behavior: smooth; }
