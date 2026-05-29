@@ -111,13 +111,75 @@ const COUNTRIES = [
   { code: 'ZW', name: 'ジンバブエ' },
 ];
 
+function getThumbMode() {
+  try {
+    return (typeof getSettings === 'function' ? getSettings().thumbnailMode : null) || 'proxy';
+  } catch { return 'proxy'; }
+}
+
 function wsrv(url, w) {
   if (!url) return '';
+  const mode = getThumbMode();
+  if (mode === 'proxy') {
+    const encoded = encodeURIComponent(url);
+    return w
+      ? `https://wsrv.nl/?url=${encoded}&w=${w}&output=webp`
+      : `https://wsrv.nl/?url=${encoded}&output=webp`;
+  }
   const encoded = encodeURIComponent(url);
-  return w
-    ? `https://wsrv.nl/?url=${encoded}&w=${w}&output=webp`
-    : `https://wsrv.nl/?url=${encoded}&output=webp`;
+  return w ? `/api/thumb?url=${encoded}&w=${w}` : `/api/thumb?url=${encoded}`;
 }
+
+const _b64Cache = new Map();
+
+function _attachBase64Loader(img) {
+  if (img._b64done) return;
+  const src = img.getAttribute('src') || '';
+  if (!src.includes('/api/thumb')) return;
+  img._b64done = true;
+  const doConvert = () => {
+    if (img._b64converted) return;
+    img._b64converted = true;
+    const apiUrl = img.src.split('#')[0];
+    if (_b64Cache.has(apiUrl)) { img.src = _b64Cache.get(apiUrl); return; }
+    fetch(apiUrl + '&fmt=b64')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (!d || !d.src) return;
+        _b64Cache.set(apiUrl, d.src);
+        document.querySelectorAll(`img[data-b64api="${CSS.escape(apiUrl)}"]`).forEach(el => { el.src = d.src; });
+        img.src = d.src;
+      })
+      .catch(() => {});
+  };
+  img.setAttribute('data-b64api', img.src);
+  if (img.complete && img.naturalWidth > 0) doConvert();
+  else img.addEventListener('load', doConvert, { once: true });
+}
+
+function _processBase64Images(root) {
+  root.querySelectorAll('img.thumb-img, img.channel-icon').forEach(_attachBase64Loader);
+}
+
+let _b64Observer = null;
+function _initBase64ThumbLoader() {
+  if (_b64Observer) return;
+  _processBase64Images(document);
+  _b64Observer = new MutationObserver(mutations => {
+    for (const m of mutations) {
+      m.addedNodes.forEach(node => {
+        if (!node || node.nodeType !== 1) return;
+        if (node.tagName === 'IMG') _attachBase64Loader(node);
+        else _processBase64Images(node);
+      });
+    }
+  });
+  _b64Observer.observe(document.body, { childList: true, subtree: true });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (getThumbMode() === 'base64') _initBase64ThumbLoader();
+});
 
 function formatDuration(seconds) {
   if (!seconds || seconds < 0) return '';
