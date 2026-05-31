@@ -45,3 +45,4 @@ class StaticCacheMiddleware(BaseHTTPMiddleware):
 app.add_middleware(StaticCacheMiddleware)
 app.add_middleware(GZipMiddleware, minimum_size=500)
 app.mount("/static", StaticFiles(directory="templates/static"), name="static")
+app.mount("/photo", StaticFiles(directory="photo"), name="photo")
