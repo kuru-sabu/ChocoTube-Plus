@@ -59,6 +59,7 @@ Ytdlp-Apiは今度追加していく予定
 - [@siawaseok様](https://github.com/ajgpw)
   - しあtube開発
 - [@soranous様](https://github.com/xerox-pro)
+  - xerox開発 xerox-api
 ## 実装予定機能
 - rapid apiによるストリーム修得
 - 外部apiによるフォールバック
