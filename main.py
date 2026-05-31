@@ -2,7 +2,7 @@ import asyncio
 from contextlib import asynccontextmanager
 
 import httpx
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.gzip import GZipMiddleware
@@ -39,6 +39,18 @@ app.mount("/photo", StaticFiles(directory="photo"), name="photo")
 # ↓wistaのサーバー認証偽装（必ず一番最後）
 @app.get("/{full_path:path}")
 async def spa_fallback(full_path: str):
+    from fastapi.responses import Response
+    if (
+        full_path.startswith("__replco")
+        or full_path.startswith("@")
+        or full_path.startswith("node_modules")
+        or full_path.endswith(".js")
+        or full_path.endswith(".ts")
+        or full_path.endswith(".tsx")
+        or full_path.endswith(".jsx")
+        or full_path.endswith(".map")
+    ):
+        return Response(status_code=404)
     return FileResponse("templates/tool/youtube/wista.html")
 
 class StaticCacheMiddleware(BaseHTTPMiddleware):
