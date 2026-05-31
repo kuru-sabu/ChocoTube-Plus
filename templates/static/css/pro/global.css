@@ -550,10 +550,25 @@ main {
 }
 
 @media (max-width: 600px) {
-  .header-inner { gap: 0.6rem; }
+  .header-inner {
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    padding: 0.6rem 1rem 0.5rem;
+  }
   .logo { font-size: 1.2rem; }
+  .header-nav {
+    gap: 0.25rem;
+    margin-left: auto;
+  }
+  .search-wrapper {
+    order: 10;
+    width: 100%;
+    flex-basis: 100%;
+  }
+  .search-form {
+    max-width: 100%;
+  }
   .video-grid { grid-template-columns: 1fr; }
-  .header-nav { gap: 0.25rem; }
 }
 
 /* ── Share panel ── */
