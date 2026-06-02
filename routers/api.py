@@ -503,4 +503,4 @@ async def whats():
 
 @router.get("/version")
 async def version():
-    return {"ver": "1.27"}
+    return {"ver": "1.29"}
