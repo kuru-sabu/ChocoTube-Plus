@@ -1,0 +1,2154 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Choco-light</title>
+<style>
+:root {
+  --bg: #050d08;
+  --surface: rgba(10,24,16,0.95);
+  --surface2: rgba(16,36,24,0.9);
+  --border: rgba(0,200,140,0.16);
+  --text: #dff0e8;
+  --muted: #64a886;
+  --red: #00c896;
+  --red-dim: #009e78;
+  --hover: rgba(0,180,120,0.1);
+  --search-bg: rgba(5,14,9,0.95);
+  --search-border: rgba(0,180,120,0.22);
+  --scrollbar: #1a4a2e;
+  --gold: #e8a634;
+  --glow: rgba(0,200,140,0.22);
+}
+[data-theme="light"] {
+  --bg: #edf7f2;
+  --surface: rgba(255,255,255,0.92);
+  --surface2: rgba(230,248,240,0.9);
+  --border: rgba(0,140,90,0.18);
+  --text: #081a10;
+  --muted: #2e7a52;
+  --red: #00a87a;
+  --red-dim: #007d5c;
+  --hover: rgba(0,140,90,0.08);
+  --search-bg: rgba(255,255,255,0.98);
+  --search-border: rgba(0,140,90,0.25);
+  --scrollbar: #7ac4a2;
+  --gold: #b8720e;
+  --glow: rgba(0,140,90,0.18);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',Arial,sans-serif;overflow-x:hidden;position:relative}
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(ellipse at 18% 20%,rgba(0,110,68,0.22) 0%,transparent 52%),
+    radial-gradient(ellipse at 82% 80%,rgba(0,68,110,0.14) 0%,transparent 52%),
+    radial-gradient(ellipse at 50% 0%,rgba(0,160,100,0.1) 0%,transparent 38%),
+    radial-gradient(ellipse at 50% 100%,rgba(0,80,50,0.12) 0%,transparent 40%);
+  animation:bg-breathe 9s ease-in-out infinite alternate;
+}
+@keyframes bg-breathe{from{opacity:.75}to{opacity:1}}
+a{color:inherit;text-decoration:none}
+button{cursor:pointer;border:none;background:none;color:inherit;font-family:inherit}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-thumb{background:var(--scrollbar);border-radius:3px}
+
+/* ── HEADER ── */
+header{
+  position:fixed;top:0;width:100%;height:56px;
+  background:rgba(5,13,8,0.82);
+  backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);
+  border-bottom:1px solid rgba(0,200,140,0.12);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 16px;z-index:200;gap:16px;
+  box-shadow:0 2px 20px rgba(0,0,0,0.4),inset 0 -1px 0 rgba(0,200,140,0.06);
+}
+[data-theme="light"] header{background:rgba(237,247,242,0.88)}
+.header-left{display:flex;align-items:center;gap:16px;flex-shrink:0}
+.logo{font-size:20px;font-weight:700;cursor:pointer;letter-spacing:-0.5px;display:flex;align-items:center;gap:0;user-select:none}
+.logo-choco{
+  background:linear-gradient(130deg,var(--gold) 0%,#00e8a8 100%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  font-weight:900;letter-spacing:-.5px;
+}
+.logo-tube{color:var(--text);font-weight:300;letter-spacing:-1px;opacity:.75}
+.header-center{flex:1;max-width:640px;display:flex;align-items:center;gap:8px}
+.search-form{display:flex;flex:1;height:38px;border:1px solid var(--search-border);border-radius:22px;overflow:hidden;background:var(--search-bg);transition:box-shadow .2s,border-color .2s}
+.search-form:focus-within{border-color:rgba(0,200,140,0.4);box-shadow:0 0 0 3px rgba(0,200,140,0.12),0 0 20px rgba(0,200,140,0.08)}
+.search-form input{flex:1;padding:0 16px 0 20px;border:none;background:transparent;color:var(--text);outline:none;font-size:15px}
+.search-form input::placeholder{color:var(--muted)}
+.search-form button{width:56px;background:var(--surface2);border-left:1px solid var(--search-border);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .2s}
+.search-form button:hover{background:rgba(0,200,140,0.15)}
+.search-form button svg{width:18px;height:18px;fill:var(--muted)}
+.engine-toggle{display:flex;background:var(--surface2);border-radius:20px;padding:3px;border:1px solid var(--border);flex-shrink:0;backdrop-filter:blur(8px)}
+.engine-btn{padding:5px 12px;border-radius:16px;font-size:12px;font-weight:600;color:var(--muted);transition:all .2s;white-space:nowrap}
+.engine-btn.active{background:var(--red);color:#000;font-weight:700;box-shadow:0 0 10px var(--glow)}
+.header-right{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.icon-btn{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:background .2s,box-shadow .2s}
+.icon-btn:hover{background:var(--hover);box-shadow:0 0 12px var(--glow)}
+.icon-btn svg{width:22px;height:22px;fill:var(--text)}
+
+/* ── MAIN ── */
+main{margin-top:56px;padding:20px 16px;min-height:calc(100vh - 56px);position:relative;z-index:1}
+.view{display:none}
+.view.active{display:block}
+
+/* ── WELCOME ── */
+.welcome-wrap{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-height:calc(100vh - 100px);max-width:600px;margin:0 auto;text-align:center;
+  animation:fadeUp .5s cubic-bezier(.22,1,.36,1);position:relative;
+}
+@keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+/* 浮遊するパーティクル */
+.welcome-wrap::before,.welcome-wrap::after{
+  content:'';position:fixed;width:280px;height:280px;border-radius:50%;
+  pointer-events:none;z-index:-1;filter:blur(80px);
+  animation:float-orb 12s ease-in-out infinite alternate;
+}
+.welcome-wrap::before{
+  background:rgba(0,180,120,0.15);top:15%;left:5%;
+  animation-duration:11s;
+}
+.welcome-wrap::after{
+  background:rgba(232,166,52,0.1);bottom:15%;right:5%;
+  animation-duration:14s;animation-delay:-4s;
+}
+@keyframes float-orb{
+  from{transform:translate(0,0) scale(1)}
+  to{transform:translate(30px,-20px) scale(1.1)}
+}
+.welcome-logo{
+  font-size:52px;font-weight:900;margin-bottom:8px;
+  letter-spacing:-2px;display:flex;align-items:center;gap:0;
+  filter:drop-shadow(0 0 32px rgba(0,200,140,0.35));
+  animation:logo-glow 4s ease-in-out infinite alternate;
+}
+.welcome-logo .logo-choco{font-size:52px}
+.welcome-logo .logo-tube{font-size:52px}
+@keyframes logo-glow{
+  from{filter:drop-shadow(0 0 24px rgba(0,200,140,0.3))}
+  to{filter:drop-shadow(0 0 44px rgba(0,200,140,0.55))}
+}
+.welcome-tagline{font-size:13px;color:var(--muted);margin-bottom:36px;letter-spacing:.08em;text-transform:uppercase;font-weight:500}
+.welcome-search{
+  width:100%;height:54px;
+  border:1px solid rgba(0,200,140,0.3);border-radius:30px;
+  display:flex;overflow:hidden;background:var(--search-bg);
+  box-shadow:0 4px 24px rgba(0,0,0,.3),0 0 0 1px rgba(0,200,140,0.08);
+  margin-bottom:32px;backdrop-filter:blur(16px);
+  transition:box-shadow .25s,border-color .25s;
+}
+.welcome-search:focus-within{
+  border-color:rgba(0,200,140,0.55);
+  box-shadow:0 0 0 3px rgba(0,200,140,0.15),0 8px 40px rgba(0,180,120,0.18);
+}
+.welcome-search input{flex:1;padding:0 22px;border:none;background:transparent;color:var(--text);font-size:17px;outline:none}
+.welcome-search input::placeholder{color:var(--muted)}
+.welcome-search button{width:72px;background:rgba(0,180,120,0.15);border-left:1px solid rgba(0,200,140,0.2);display:flex;align-items:center;justify-content:center;transition:background .2s}
+.welcome-search button:hover{background:rgba(0,200,140,0.25)}
+.welcome-search button svg{width:22px;height:22px;fill:var(--muted)}
+.welcome-engine-select{
+  width:100%;
+  background:rgba(10,24,16,0.7);
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  border:1px solid rgba(0,200,140,0.14);
+  border-radius:20px;padding:24px;text-align:left;margin-bottom:24px;
+  box-shadow:0 8px 40px rgba(0,0,0,.35),inset 0 1px 0 rgba(0,200,140,0.08);
+}
+[data-theme="light"] .welcome-engine-select{background:rgba(255,255,255,0.8)}
+.welcome-engine-title{font-size:14px;font-weight:700;margin-bottom:16px;color:var(--text);letter-spacing:.04em;text-transform:uppercase}
+.engine-option{display:flex;align-items:flex-start;gap:12px;padding:12px;border-radius:14px;cursor:pointer;transition:all .2s;margin-bottom:8px;border:1px solid transparent}
+.engine-option:hover{background:var(--hover);border-color:rgba(0,200,140,0.12)}
+.engine-option input[type=radio]{margin-top:3px;accent-color:var(--red)}
+.engine-option-info .name{font-weight:600;font-size:14px;margin-bottom:2px}
+.engine-option-info .desc{font-size:12px;color:var(--muted);line-height:1.4}
+.welcome-btn{
+  background:linear-gradient(135deg,var(--gold) 0%,#00c896 100%);
+  color:#000;padding:14px 52px;border-radius:32px;font-size:16px;font-weight:800;
+  transition:all .25s;margin-top:8px;letter-spacing:.04em;
+  box-shadow:0 4px 24px rgba(0,200,140,0.35),0 2px 8px rgba(0,0,0,.2);
+  position:relative;overflow:hidden;
+}
+.welcome-btn::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(255,255,255,0.15),transparent);
+  pointer-events:none;
+}
+.welcome-btn:hover{transform:translateY(-3px) scale(1.03);box-shadow:0 8px 40px rgba(0,200,140,0.45),0 4px 16px rgba(0,0,0,.3)}
+
+/* ── SECTION HEADER ── */
+.section-header{font-size:18px;font-weight:700;margin-bottom:20px;display:flex;align-items:center;gap:10px}
+.section-header .badge-tag{font-size:11px;font-weight:700;background:linear-gradient(135deg,var(--gold),var(--red));color:#000;padding:2px 10px;border-radius:10px;box-shadow:0 2px 8px var(--glow)}
+
+/* ── VIDEO GRID ── */
+.video-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px 16px;row-gap:32px}
+.video-card{
+  cursor:pointer;display:flex;flex-direction:column;gap:10px;
+  transition:transform .35s cubic-bezier(.25,.46,.45,.94),box-shadow .35s;
+  border-radius:14px;padding:0 0 6px;
+}
+.video-card:hover{
+  transform:perspective(700px) rotateX(2deg) translateY(-10px) scale(1.02);
+  box-shadow:0 28px 56px rgba(0,0,0,.5),0 0 0 1px rgba(0,200,140,0.18),0 0 32px rgba(0,200,140,0.1);
+}
+.thumb-wrap{
+  width:100%;aspect-ratio:16/9;background:var(--surface2);
+  border-radius:12px;overflow:hidden;position:relative;
+  box-shadow:0 4px 20px rgba(0,0,0,.45);
+  transition:box-shadow .35s;
+}
+.video-card:hover .thumb-wrap{box-shadow:0 8px 32px rgba(0,180,120,0.25)}
+.thumb-wrap img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .5s ease}
+.video-card:hover .thumb-wrap img{transform:scale(1.03)}
+.duration-badge{position:absolute;bottom:6px;right:6px;background:rgba(0,0,0,.85);color:#fff;font-size:11px;font-weight:700;padding:1px 6px;border-radius:5px;backdrop-filter:blur(4px)}
+.card-info{display:flex;gap:10px}
+.card-avatar{width:34px;height:34px;border-radius:50%;background:var(--surface2);flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.3);transition:box-shadow .2s}
+.video-card:hover .card-avatar{box-shadow:0 0 12px var(--glow)}
+.card-avatar img{width:100%;height:100%;object-fit:cover}
+.card-details{flex:1;overflow:hidden}
+.card-title{font-size:14px;font-weight:500;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:4px}
+.card-meta{font-size:12px;color:var(--muted)}
+.card-author-link{cursor:pointer;color:var(--muted)}
+.card-author-link:hover{color:var(--text);text-decoration:underline}
+.watch-author-link{cursor:pointer;color:var(--muted)}
+.watch-author-link:hover{color:var(--text);text-decoration:underline}
+.watch-channel-row{display:flex;align-items:center;gap:10px;margin:6px 0 10px;cursor:pointer;width:fit-content;padding:6px 10px 6px 0;border-radius:8px;transition:background .15s}
+.watch-channel-row:hover{background:var(--hover)}
+.watch-channel-row.hidden{display:none!important}
+.watch-ch-avatar{width:36px;height:36px;border-radius:50%;overflow:hidden;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#fff;flex-shrink:0}
+.watch-ch-avatar img{width:100%;height:100%;object-fit:cover;display:block}
+.watch-ch-info{display:flex;flex-direction:column;gap:1px}
+.watch-ch-name{font-size:14px;font-weight:600;color:var(--text);line-height:1.3}
+.watch-ch-sub{font-size:12px;color:var(--muted)}
+
+/* ── SEARCH RESULTS ── */
+.results-header{font-size:18px;font-weight:700;margin-bottom:20px}
+.results-meta{font-size:12px;color:var(--muted);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.results-meta .engine-tag{background:var(--surface2);border:1px solid var(--border);padding:2px 8px;border-radius:10px;font-size:11px}
+
+/* ── STATES ── */
+.loader{text-align:center;padding:40px;color:var(--muted);font-size:14px}
+.loader-spinner{display:inline-block;width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--red);border-radius:50%;animation:spin .7s linear infinite;margin-bottom:10px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.error-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;text-align:center;color:var(--muted);font-size:14px;margin:20px 0}
+.error-box strong{display:block;font-size:16px;color:var(--text);margin-bottom:8px}
+.hidden{display:none!important}
+
+/* ── SUGGESTIONS ── */
+.suggestions-dropdown{
+  position:absolute;top:100%;left:0;right:0;background:var(--bg);
+  border:1px solid var(--border);border-top:none;border-radius:0 0 12px 12px;
+  z-index:300;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.3);
+}
+.suggestion-item{padding:10px 20px;cursor:pointer;font-size:14px;display:flex;align-items:center;gap:10px}
+.suggestion-item:hover{background:var(--hover)}
+.suggestion-item svg{width:16px;height:16px;fill:var(--muted);flex-shrink:0}
+.search-wrap{position:relative;flex:1}
+
+/* ── RESPONSIVE ── */
+@media(max-width:600px){
+  .header-center{margin:0 4px}
+  .engine-toggle{display:none}
+  main{padding:16px 10px}
+  .video-grid{grid-template-columns:1fr;row-gap:20px}
+  .welcome-logo{font-size:32px}
+}
+@media(max-width:480px){
+  .search-form input{font-size:14px;padding:0 10px 0 14px}
+}
+
+/* Hidden CSE container */
+#cse-hidden{display:none;position:fixed;top:80px;left:50%;transform:translateX(-50%);background:#fff;padding:20px;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.5);z-index:9999;max-width:90vw}
+
+/* ── WATCH PAGE ── */
+#view-watch{padding:0}
+.watch-layout{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:24px;align-items:start;padding:20px 16px}
+.watch-player-wrap{width:100%;aspect-ratio:16/9;background:#000;border-radius:12px;overflow:hidden;position:relative;display:flex;align-items:center;justify-content:center}
+.watch-player-wrap iframe,.watch-player-wrap video{position:absolute;inset:0;width:100%;height:100%;border:none;display:block}
+.player-modes{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 6px}
+.mode-btn{padding:6px 13px;border-radius:16px;font-size:12px;font-weight:600;background:var(--surface2);border:1px solid var(--border);color:var(--muted);cursor:pointer;transition:all .15s}
+.mode-btn.active{background:var(--red);color:#fff;border-color:var(--red)}
+.mode-btn:hover:not(.active){background:var(--hover);color:var(--text)}
+.mode-group-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;align-self:center;padding:0 4px}
+.stream-status{font-size:12px;color:var(--muted);margin-bottom:8px;min-height:18px}
+.watch-title{font-size:18px;font-weight:700;line-height:1.4;margin:6px 0 6px}
+.watch-meta{font-size:13px;color:var(--muted);margin-bottom:12px}
+.watch-desc-wrap{background:var(--surface);border-radius:10px;padding:12px 14px;margin-bottom:16px;cursor:pointer}
+.watch-desc{font-size:13px;line-height:1.6;white-space:pre-wrap;word-break:break-word;max-height:72px;overflow:hidden;transition:max-height .3s ease}
+.watch-desc.expanded{max-height:1000px}
+.watch-desc-toggle{font-size:12px;font-weight:700;color:var(--text);margin-top:6px;user-select:none}
+.watch-sidebar{}
+.sidebar-title{font-size:15px;font-weight:700;margin-bottom:12px}
+.related-card{display:flex;gap:8px;cursor:pointer;padding:6px 0;transition:opacity .15s}
+.related-card:hover{opacity:.8}
+.related-thumb{width:160px;min-width:160px;aspect-ratio:16/9;border-radius:6px;overflow:hidden;background:var(--surface2);position:relative}
+.related-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.related-dur{position:absolute;bottom:3px;right:4px;background:rgba(0,0,0,.85);color:#fff;font-size:10px;font-weight:700;padding:1px 4px;border-radius:3px}
+.related-info{flex:1;overflow:hidden}
+.related-title{font-size:13px;font-weight:500;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:3px}
+.related-meta{font-size:11px;color:var(--muted)}
+@media(max-width:960px){
+  .watch-layout{grid-template-columns:1fr}
+  .related-thumb{width:130px;min-width:130px}
+}
+@media(max-width:600px){
+  .watch-layout{padding:12px 10px;gap:16px}
+  .watch-title{font-size:15px}
+  .related-thumb{width:110px;min-width:110px}
+}
+
+/* ── HD CONTROLS ── */
+.hd-controls{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:6px 0;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px}
+.hd-group{display:flex;align-items:center;gap:6px}
+.hd-label{font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap;text-transform:uppercase;letter-spacing:.06em}
+.hd-select{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:4px 8px;font-size:12px;font-family:inherit;cursor:pointer;outline:none;transition:border-color .15s}
+.hd-select:focus{border-color:var(--red)}
+.hd-vol-wrap{display:flex;align-items:center;gap:6px;margin-left:auto}
+.hd-vol-icon{font-size:13px;cursor:pointer;user-select:none}
+input.hd-vol{width:80px;height:4px;accent-color:var(--red);cursor:pointer}
+.hd-sep{width:1px;height:18px;background:var(--border);margin:0 4px}
+
+/* ── CHANNEL PAGE ── */
+#view-channel{padding:0}
+.ch-banner{width:100%;height:160px;background:var(--surface2);overflow:hidden;position:relative;flex-shrink:0}
+.ch-banner img{width:100%;height:100%;object-fit:cover;display:block}
+.ch-header{display:flex;align-items:flex-end;gap:14px;padding:0 16px 14px;margin-top:-36px;position:relative;z-index:1}
+.ch-avatar{width:72px;height:72px;border-radius:50%;border:3px solid var(--bg);background:var(--surface2);flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:#fff}
+.ch-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.ch-info{flex:1;min-width:0;padding-bottom:2px}
+.ch-name{font-size:18px;font-weight:700;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ch-verified{color:var(--muted);font-size:15px}
+.ch-sub{font-size:12px;color:var(--muted);margin-top:3px}
+.ch-desc-outer{padding:0 16px 12px}
+.ch-desc-wrap{font-size:13px;color:var(--muted);line-height:1.6;max-height:56px;overflow:hidden;cursor:pointer;transition:max-height .3s}
+.ch-desc-wrap.expanded{max-height:600px}
+.ch-desc-more{font-size:12px;font-weight:700;color:var(--text);margin-top:4px;cursor:pointer}
+.ch-tabs{display:flex;border-bottom:1px solid var(--border);padding:0 16px;gap:0;overflow-x:auto;scrollbar-width:none}
+.ch-tabs::-webkit-scrollbar{display:none}
+.ch-tab{padding:10px 16px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all .15s;flex-shrink:0}
+.ch-tab:hover{color:var(--text)}
+.ch-tab.active{color:var(--text);border-bottom-color:var(--red)}
+.ch-content{padding:16px 16px 0}
+.ch-sort-bar{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.ch-sort-label{font-size:12px;color:var(--muted)}
+.ch-sort-sel{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:4px 10px;font-size:12px;font-family:inherit;cursor:pointer;outline:none}
+.ch-load-more-btn{display:block;width:100%;padding:10px;margin:14px 0;border-radius:20px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;text-align:center;transition:background .15s}
+.ch-load-more-btn:hover{background:var(--hover)}
+/* Playlist cards */
+.playlist-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px 16px;row-gap:24px}
+.playlist-card{cursor:pointer;display:flex;flex-direction:column;gap:8px;transition:transform .15s}
+.playlist-card:hover{transform:translateY(-2px)}
+.playlist-thumb{width:100%;aspect-ratio:16/9;background:var(--surface2);border-radius:10px;overflow:hidden;position:relative}
+.playlist-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.playlist-count-badge{position:absolute;bottom:0;right:0;background:rgba(0,0,0,.82);color:#fff;font-size:11px;font-weight:700;padding:3px 8px;border-radius:8px 0 8px 0;display:flex;align-items:center;gap:3px}
+.playlist-title{font-size:13px;font-weight:600;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.playlist-meta{font-size:11px;color:var(--muted)}
+/* Community posts */
+.community-post{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:12px}
+.post-author-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.post-avatar{width:36px;height:36px;border-radius:50%;overflow:hidden;background:var(--surface2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff}
+.post-avatar img{width:100%;height:100%;object-fit:cover}
+.post-author-name{font-size:13px;font-weight:700}
+.post-date{font-size:11px;color:var(--muted)}
+.post-body{font-size:13px;line-height:1.6;word-break:break-word;white-space:pre-wrap}
+.post-likes{font-size:12px;color:var(--muted);margin-top:8px}
+.ch-empty{font-size:13px;color:var(--muted);padding:24px 0;text-align:center}
+
+/* ── STATS ROW ── */
+.watch-stats{display:flex;flex-wrap:wrap;gap:12px;margin:6px 0 12px;font-size:13px;color:var(--muted)}
+.watch-stat{display:flex;align-items:center;gap:4px}
+.watch-stat svg{width:14px;height:14px;fill:var(--muted);flex-shrink:0}
+.watch-stat strong{color:var(--text);font-weight:600}
+
+/* ── COMMENTS ── */
+.watch-comments{margin-top:20px}
+.comments-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px}
+.comments-title-row{display:flex;align-items:center;gap:8px}
+.comments-title{font-size:15px;font-weight:700}
+.comments-count{font-size:13px;color:var(--muted);font-weight:400}
+.comments-sort{display:flex;gap:6px}
+.sort-btn{padding:5px 13px;border-radius:14px;font-size:12px;font-weight:600;background:var(--surface2);border:1px solid var(--border);color:var(--muted);cursor:pointer;transition:all .15s}
+.sort-btn.active{background:var(--red);color:#fff;border-color:var(--red)}
+.sort-btn:hover:not(.active){background:var(--hover);color:var(--text)}
+.comment-item{display:flex;gap:10px;padding:12px 0;border-bottom:1px solid var(--border)}
+.comment-item:last-child{border-bottom:none}
+.comment-avatar{width:34px;height:34px;border-radius:50%;background:var(--surface2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;overflow:hidden}
+.comment-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.comment-body{flex:1;min-width:0}
+.comment-author{font-size:12px;font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.comment-owner-badge{font-size:10px;background:rgba(0,180,100,0.18);color:#6ee7b7;border:1px solid rgba(0,180,100,0.35);padding:1px 6px;border-radius:8px;font-weight:600}
+.comment-text{font-size:13px;line-height:1.6;word-break:break-word;white-space:pre-wrap}
+.comment-text.clamped{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;white-space:normal}
+.comment-expand{font-size:12px;font-weight:700;color:var(--red);cursor:pointer;margin-top:4px;display:inline-block}
+.comment-foot{font-size:11px;color:var(--muted);margin-top:5px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.comment-likes{display:flex;align-items:center;gap:3px}
+.comment-likes svg{width:12px;height:12px;fill:var(--muted)}
+.comment-pinned{color:#3b82f6;font-weight:600}
+.comment-heart{color:#f43f5e}
+.comments-loader{text-align:center;padding:20px;color:var(--muted);font-size:13px;display:flex;align-items:center;justify-content:center;gap:8px}
+.comments-more-btn{display:block;width:100%;padding:10px;margin-top:10px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;transition:background .15s;text-align:center}
+.comments-more-btn:hover{background:var(--hover)}
+.comments-empty{font-size:13px;color:var(--muted);padding:16px 0}
+.comments-list{margin:0}
+</style>
+</head>
+<body>
+
+<div id="cse-hidden"></div>
+
+<!-- ── HEADER ── -->
+<header>
+  <div class="header-left">
+    <div class="logo" onclick="navigate('home')">
+      <span class="logo-choco">Choco-light</span>
+    </div>
+  </div>
+
+  <div class="header-center">
+    <div class="search-wrap" id="search-wrap">
+      <form class="search-form" id="header-search-form" onsubmit="doSearch(event)" autocomplete="off">
+        <input type="text" id="header-q" placeholder="検索" oninput="onSearchInput(this.value)" onfocus="onSearchFocus()" onblur="onSearchBlur()">
+        <button type="submit" aria-label="検索">
+          <svg viewBox="0 0 24 24"><path d="M21 20.6l-5.4-5.4A7.5 7.5 0 1 0 4.5 12a7.5 7.5 0 0 0 10.7 5.1L20.6 22l.4-.4-2.1-2.1L21 20.6zm-16.5-8.6a6 6 0 1 1 12 0 6 6 0 0 1-12 0z"/></svg>
+        </button>
+      </form>
+      <div class="suggestions-dropdown hidden" id="suggestions-box"></div>
+    </div>
+
+    <div class="engine-toggle" id="header-engine-toggle">
+      <button class="engine-btn active" id="hbtn-choco" onclick="setEngine('choco')">Choco</button>
+      <button class="engine-btn" id="hbtn-google" onclick="setEngine('google')">Google</button>
+    </div>
+  </div>
+
+  <div class="header-right">
+    <button class="icon-btn" onclick="toggleTheme()" title="テーマ切替">
+      <svg id="theme-icon" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.4 5.4 0 0 1-4.4 2.26 5.4 5.4 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+    </button>
+  </div>
+</header>
+
+<!-- ── MAIN VIEWS ── -->
+<main id="main">
+
+  <!-- WELCOME -->
+  <div id="view-welcome" class="view active">
+    <div class="welcome-wrap">
+      <div class="welcome-logo"><span class="logo-choco">Choco-light</span></div>
+      <div class="welcome-tagline">🌿 自然と光のビデオフロントエンド</div>
+
+      <form class="welcome-search" onsubmit="doWelcomeSearch(event)" autocomplete="off">
+        <input type="text" id="welcome-q" placeholder="動画を検索...">
+        <button type="submit">
+          <svg viewBox="0 0 24 24"><path d="M21 20.6l-5.4-5.4A7.5 7.5 0 1 0 4.5 12a7.5 7.5 0 0 0 10.7 5.1L20.6 22l.4-.4-2.1-2.1L21 20.6zm-16.5-8.6a6 6 0 1 1 12 0 6 6 0 0 1-12 0z"/></svg>
+        </button>
+      </form>
+
+      <div class="welcome-engine-select">
+        <div class="welcome-engine-title">検索エンジンを選択</div>
+        <label class="engine-option">
+          <input type="radio" name="welcome-engine" value="choco" checked onchange="setEngine('choco')">
+          <div class="engine-option-info">
+            <div class="name">🍫 Choco API（推奨）</div>
+            <div class="desc">Invidiousをベースにした高速APIです。動画情報（再生数・投稿日など）を取得できます。3つのサーバーに並列リクエストし最速で応答します。</div>
+          </div>
+        </label>
+        <label class="engine-option">
+          <input type="radio" name="welcome-engine" value="google" onchange="setEngine('google')">
+          <div class="engine-option-info">
+            <div class="name">🔍 Google カスタム検索</div>
+            <div class="desc">Google の検索エンジン経由でYouTube動画を検索します。初回はキャプチャ確認が必要な場合があります。</div>
+          </div>
+        </label>
+      </div>
+
+      <button class="welcome-btn" onclick="startApp()">はじめる</button>
+    </div>
+  </div>
+
+  <!-- HOME -->
+  <div id="view-home" class="view">
+    <div class="section-header">
+      トレンド <span class="badge-tag">JP</span>
+    </div>
+    <div id="home-grid" class="video-grid"></div>
+    <div id="home-loader" class="loader">
+      <div class="loader-spinner"></div><br>読み込み中...
+    </div>
+    <div id="home-error" class="error-box hidden">
+      <strong>読み込みに失敗しました</strong>
+      APIサーバーに接続できませんでした。しばらく経ってから再試行してください。<br><br>
+      <button onclick="loadTrend()" style="background:var(--red);color:#fff;padding:8px 20px;border-radius:20px;font-size:13px">再試行</button>
+    </div>
+  </div>
+
+  <!-- CHANNEL -->
+  <div id="view-channel" class="view">
+    <div class="ch-banner" id="ch-banner"><img id="ch-banner-img" src="" alt="" style="display:none"></div>
+    <div class="ch-header">
+      <div class="ch-avatar" id="ch-avatar"></div>
+      <div class="ch-info">
+        <div class="ch-name" id="ch-name-el">読み込み中...</div>
+        <div class="ch-sub" id="ch-sub-el"></div>
+      </div>
+    </div>
+    <div class="ch-desc-outer">
+      <div class="ch-desc-wrap" id="ch-desc-wrap" onclick="toggleChDesc()">
+        <span id="ch-desc-el"></span>
+      </div>
+      <div class="ch-desc-more" id="ch-desc-more" onclick="toggleChDesc()">もっと見る ▾</div>
+    </div>
+    <div class="ch-tabs" id="ch-tabs">
+      <div class="ch-tab active" data-tab="videos"     onclick="switchChTab('videos')">動画</div>
+      <div class="ch-tab"        data-tab="shorts"     onclick="switchChTab('shorts')">ショート</div>
+      <div class="ch-tab"        data-tab="streams"    onclick="switchChTab('streams')">ライブ</div>
+      <div class="ch-tab"        data-tab="playlists"  onclick="switchChTab('playlists')">プレイリスト</div>
+      <div class="ch-tab"        data-tab="community"  onclick="switchChTab('community')">コミュニティ</div>
+    </div>
+    <div class="ch-content" id="ch-content">
+      <div class="loader" id="ch-loader"><div class="loader-spinner"></div><br>読み込み中...</div>
+    </div>
+  </div>
+
+  <!-- WATCH -->
+  <div id="view-watch" class="view">
+    <div class="watch-layout">
+      <div class="watch-main">
+        <div class="watch-player-wrap" id="watch-player-wrap">
+          <div class="loader" id="watch-player-loader"><div class="loader-spinner"></div></div>
+        </div>
+        <div class="player-modes" id="player-modes"></div>
+        <div id="hd-controls" class="hd-controls hidden"></div>
+        <div class="stream-status" id="stream-status"></div>
+        <h1 class="watch-title" id="watch-title-el"></h1>
+        <div class="watch-channel-row hidden" id="watch-channel-row">
+          <div class="watch-ch-avatar" id="watch-ch-avatar"></div>
+          <div class="watch-ch-info">
+            <div class="watch-ch-name" id="watch-ch-name"></div>
+            <div class="watch-ch-sub" id="watch-ch-sub"></div>
+          </div>
+        </div>
+        <div class="watch-meta" id="watch-meta-el"></div>
+        <div class="watch-stats hidden" id="watch-stats-el"></div>
+        <div class="watch-desc-wrap hidden" id="watch-desc-wrap" onclick="toggleWatchDesc()">
+          <div class="watch-desc" id="watch-desc-el"></div>
+          <div class="watch-desc-toggle" id="watch-desc-toggle">もっと見る ▾</div>
+        </div>
+        <div class="watch-comments hidden" id="watch-comments">
+          <div class="comments-header">
+            <div class="comments-title-row">
+              <span class="comments-title">コメント</span>
+              <span class="comments-count" id="comments-count-el"></span>
+            </div>
+            <div class="comments-sort">
+              <button class="sort-btn active" id="sort-top" onclick="switchCommentSort('top')">人気順</button>
+              <button class="sort-btn" id="sort-new" onclick="switchCommentSort('new')">新しい順</button>
+            </div>
+          </div>
+          <div id="comments-list" class="comments-list"></div>
+          <div id="comments-loader" class="comments-loader hidden">
+            <div class="loader-spinner" style="width:20px;height:20px;border-width:2px"></div> 読み込み中...
+          </div>
+          <button class="comments-more-btn hidden" id="comments-more-btn" onclick="loadMoreComments()">続きを読み込む</button>
+        </div>
+      </div>
+      <div class="watch-sidebar">
+        <div class="sidebar-title">関連動画</div>
+        <div id="related-grid"></div>
+        <div id="related-loader" class="loader hidden"><div class="loader-spinner"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SEARCH -->
+  <div id="view-search" class="view">
+    <div id="search-results-header" class="results-header"></div>
+    <div id="search-results-meta" class="results-meta"></div>
+    <div id="search-grid" class="video-grid"></div>
+    <div id="search-loader" class="loader hidden">
+      <div class="loader-spinner"></div><br>検索中...
+    </div>
+    <div id="search-load-more" class="loader hidden">
+      <div class="loader-spinner"></div><br>読み込み中...
+    </div>
+    <div id="search-sentinel" style="height:1px"></div>
+    <div id="search-error" class="error-box hidden">
+      <strong>検索に失敗しました</strong>
+      もう一度お試しください。
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ────────────────────────────────────────
+//  CONFIG
+// ────────────────────────────────────────
+var CHOCO_APIS = [
+  'https://choco-inv-main-api.onrender.com',
+  'https://choco-inv-main-api-sexg.onrender.com',
+  'https://choco-inv-main-api-ev9d.onrender.com'
+];
+
+var CORS_PROXIES = [
+  url => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+  url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+  url => `https://thingproxy.freeboard.io/fetch/${url}`,
+  url => `https://cors.sh/${url}`,
+  url => `https://proxy.cors.sh/${url}`,
+  url => `https://yacdn.org/proxy/${url}`,
+  url => `https://api.codetabs.com/v1/tmp/?quest=${encodeURIComponent(url)}`
+];
+
+var CSE_CX = 'c04ec9d20c4264b0d';
+
+var STREAM_APIS = [
+  'https://choco-inv-stream-api.onrender.com',
+  'https://choco-inv-stream-api-rcvk.onrender.com',
+  'https://choco-inv-stream-api-arck.onrender.com'
+];
+
+var currentEngine      = 'choco'; // 'choco' | 'google'
+var currentView        = 'welcome';
+var isFetching         = false;
+var lastQuery          = '';
+var suggestTimer       = null;
+var cseReady           = false;
+var cseResolve         = null;
+var currentSearchPage  = 1;
+var searchHasMore      = false;
+var scrollObserver     = null;
+
+var kahootKey                  = null;
+var currentVideoId             = null;
+var currentPlayMode            = 'nocookie';
+var currentStreamData          = null;
+var currentAdaptiveFormats     = null;
+var hdParsed                   = null; // { videos:[], audios:[] }
+var hdAudioEl                  = null; // 現在の HDオーディオ要素
+var watchDescExpanded          = false;
+var currentCommentSort         = 'top';
+var currentCommentContinuation = null;
+var commentFetching            = false;
+
+var currentChannelId  = null;
+var currentChTab      = 'videos';
+var currentChPage     = 1;
+var chHasMore         = false;
+var chDescExpanded    = false;
+var chVideosSortBy    = 'newest';
+var chFetching        = false;
+
+// ────────────────────────────────────────
+//  PERSISTENCE
+// ────────────────────────────────────────
+function loadConfig() {
+  try { return JSON.parse(localStorage.getItem('litetube_cfg') || '{}'); }
+  catch(e) { return {}; }
+}
+function saveConfig(obj) {
+  const cfg = { ...loadConfig(), ...obj };
+  localStorage.setItem('litetube_cfg', JSON.stringify(cfg));
+}
+
+// ────────────────────────────────────────
+//  INIT
+// ────────────────────────────────────────
+(function init() {
+  const cfg = loadConfig();
+
+  // theme
+  const theme = cfg.theme || 'dark';
+  document.documentElement.setAttribute('data-theme', theme);
+
+  // engine
+  if (cfg.engine) {
+    setEngine(cfg.engine, false);
+    // sync welcome radio
+    const radio = document.querySelector(`input[name="welcome-engine"][value="${cfg.engine}"]`);
+    if (radio) radio.checked = true;
+  }
+
+  // first visit or returning
+  if (cfg.visited) {
+    navigate('home');
+    loadTrend();
+  }
+
+  // Edu用キーをバックグラウンドで先読み（動画を開いたとき即座に使えるよう）
+  fetchKahootKey();
+})();
+
+// ────────────────────────────────────────
+//  NAVIGATION
+// ────────────────────────────────────────
+function navigate(view) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + view).classList.add('active');
+  currentView = view;
+  window.scrollTo(0, 0);
+}
+
+function startApp() {
+  saveConfig({ visited: true, engine: currentEngine });
+  navigate('home');
+  loadTrend();
+}
+
+// ────────────────────────────────────────
+//  ENGINE TOGGLE
+// ────────────────────────────────────────
+function setEngine(eng, persist = true) {
+  currentEngine = eng;
+  if (persist) saveConfig({ engine: eng });
+
+  // header buttons
+  document.getElementById('hbtn-choco').classList.toggle('active', eng === 'choco');
+  document.getElementById('hbtn-google').classList.toggle('active', eng === 'google');
+
+  // welcome radios
+  const radio = document.querySelector(`input[name="welcome-engine"][value="${eng}"]`);
+  if (radio) radio.checked = true;
+}
+
+// ────────────────────────────────────────
+//  THEME
+// ────────────────────────────────────────
+function toggleTheme() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const next = isDark ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  saveConfig({ theme: next });
+}
+
+// ────────────────────────────────────────
+//  CHOCO API HELPERS
+// ────────────────────────────────────────
+async function chocoFetch(path) {
+  // まず直接リクエストを全API並列で試みる
+  const direct = CHOCO_APIS.map(base =>
+    fetch(base + path).then(r => { if (!r.ok) throw new Error('not ok'); return r.json(); })
+  );
+  try {
+    return await Promise.any(direct);
+  } catch(_) {}
+
+  // CORS失敗 → 全プロキシ × 全APIを一括並列リクエストし最速を採用
+  const allProxied = CORS_PROXIES.flatMap(proxyFn =>
+    CHOCO_APIS.map(base =>
+      fetch(proxyFn(base + path)).then(r => { if (!r.ok) throw new Error('not ok'); return r.json(); })
+    )
+  );
+  return Promise.any(allProxied);
+}
+
+// ────────────────────────────────────────
+//  AIJIMY API — 初期メタデータ高速取得
+// ────────────────────────────────────────
+async function aijimyFetch(id) {
+  const url = `https://api.aijimy.com/get?code=get-youtube-videodata&text=${encodeURIComponent(id)}`;
+  const toText = r => { if (!r.ok) throw new Error('aijimy: ' + r.status); return r.text(); };
+
+  // まず直叩き → CORS失敗ならプロキシ経由
+  let text;
+  try {
+    text = await fetch(url).then(toText);
+  } catch(_) {
+    const proxied = CORS_PROXIES.map(fn => fetch(fn(url)).then(toText));
+    text = await Promise.any(proxied);
+  }
+
+  // 数字をパース（カンマ/記号除去）
+  const parseNum = s => s ? parseInt(s.replace(/[^0-9]/g, ''), 10) || null : null;
+
+  // 再生数
+  const viewsM = text.match(/(?:view(?:s| count)|再生(?:回数|数))\D{0,10}?([\d,，. ]+)/i);
+  const viewCount = parseNum(viewsM && viewsM[1]);
+
+  // いいね数
+  const likesM = text.match(/(?:like(?:s| count)|いいね(?:数)?)\D{0,10}?([\d,，. ]+)/i);
+  const likeCount = parseNum(likesM && likesM[1]);
+
+  // 投稿日
+  const dateM = text.match(/(?:publish(?:ed)?(?: (?:at|date|text))?|post(?:ed)?(?: (?:at|date))?|公開日|投稿日)[^\n:：]{0,5}[：:\s]([^\n]{3,40})/i);
+  const publishedText = dateM ? dateM[1].trim() : null;
+
+  // 説明文（descriptionラベル以降の複数行）
+  const descM = text.match(/(?:description|説明文?|概要)[：:\s]{0,5}\n?([\s\S]{10,1000}?)(?:\n{3,}|$)/i);
+  const description = descM ? descM[1].trim() : null;
+
+  return { viewCount, likeCount, publishedText, description, _raw: text };
+}
+
+// クエリ文字列のサニタイズ（URLや余計な文字列を除去）
+function sanitizeQuery(q) {
+  return q
+    .replace(/https?:\/\/\S+/gi, '')  // URLを除去
+    .replace(/\s{2,}/g, ' ')           // 連続スペースを1つに
+    .trim();
+}
+
+// ────────────────────────────────────────
+//  TRENDING (Choco only)
+// ────────────────────────────────────────
+async function loadTrend() {
+  const grid   = document.getElementById('home-grid');
+  const loader = document.getElementById('home-loader');
+  const errBox = document.getElementById('home-error');
+
+  grid.innerHTML = '';
+  loader.classList.remove('hidden');
+  errBox.classList.add('hidden');
+
+  try {
+    const data = await chocoFetch('/api/trending?region=JP&type=default');
+    loader.classList.add('hidden');
+    const items = data.results || data;
+    if (!Array.isArray(items) || items.length === 0) throw new Error('empty');
+    renderCards(items, grid);
+  } catch(e) {
+    loader.classList.add('hidden');
+    errBox.classList.remove('hidden');
+  }
+}
+
+// ────────────────────────────────────────
+//  SEARCH
+// ────────────────────────────────────────
+function doWelcomeSearch(e) {
+  if (e) e.preventDefault();
+  const q = sanitizeQuery(document.getElementById('welcome-q').value);
+  if (!q) return;
+  document.getElementById('header-q').value = q;
+  saveConfig({ visited: true, engine: currentEngine });
+  runSearch(q);
+}
+
+function doSearch(e) {
+  if (e) e.preventDefault();
+  const q = sanitizeQuery(document.getElementById('header-q').value);
+  if (!q) return;
+  hideSuggestions();
+  runSearch(q);
+}
+
+async function runSearch(q) {
+  if (isFetching) return;
+  isFetching = true;
+  lastQuery = q;
+  currentSearchPage = 1;
+  searchHasMore = false;
+  navigate('search');
+
+  const grid    = document.getElementById('search-grid');
+  const loader  = document.getElementById('search-loader');
+  const more    = document.getElementById('search-load-more');
+  const errBox  = document.getElementById('search-error');
+  const header  = document.getElementById('search-results-header');
+  const meta    = document.getElementById('search-results-meta');
+
+  grid.innerHTML = '';
+  more.classList.add('hidden');
+  loader.classList.remove('hidden');
+  errBox.classList.add('hidden');
+  header.textContent = `「${q}」の検索結果`;
+  meta.innerHTML = '';
+  setupScrollObserver();
+
+  try {
+    if (currentEngine === 'choco') {
+      await searchChoco(q, grid, meta, 1);
+    } else {
+      await searchGoogle(q, grid, meta, 1);
+    }
+    loader.classList.add('hidden');
+  } catch(err) {
+    loader.classList.add('hidden');
+    errBox.classList.remove('hidden');
+  } finally {
+    isFetching = false;
+  }
+}
+
+async function loadMoreSearch() {
+  if (isFetching || !searchHasMore) return;
+  isFetching = true;
+  const nextPage = currentSearchPage + 1;
+
+  const grid   = document.getElementById('search-grid');
+  const more   = document.getElementById('search-load-more');
+  const errBox = document.getElementById('search-error');
+  more.classList.remove('hidden');
+
+  try {
+    if (currentEngine === 'choco') {
+      await searchChoco(lastQuery, grid, null, nextPage);
+    } else {
+      await searchGoogle(lastQuery, grid, null, nextPage);
+    }
+    currentSearchPage = nextPage;
+  } catch(e) {
+    searchHasMore = false;
+  } finally {
+    more.classList.add('hidden');
+    isFetching = false;
+  }
+}
+
+function setupScrollObserver() {
+  if (scrollObserver) scrollObserver.disconnect();
+  const sentinel = document.getElementById('search-sentinel');
+  scrollObserver = new IntersectionObserver(entries => {
+    if (entries[0].isIntersecting && searchHasMore && !isFetching) {
+      loadMoreSearch();
+    }
+  }, { rootMargin: '200px' });
+  scrollObserver.observe(sentinel);
+}
+
+// ── Choco search ──
+async function searchChoco(q, grid, metaEl, page) {
+  const path = `/api/search?q=${encodeURIComponent(q)}&type=video&region=JP&page=${page}`;
+  const data  = await chocoFetch(path);
+  const items = data.results || data;
+  if (!Array.isArray(items) || items.length === 0) { searchHasMore = false; return; }
+  const videos = items.filter(v => v.type === 'video' || v.videoId);
+  if (videos.length === 0) { searchHasMore = false; return; }
+  if (metaEl) metaEl.innerHTML = `<span class="engine-tag">🍫 Choco API</span> ${videos.length} 件`;
+  renderCards(videos, grid);
+  searchHasMore = videos.length >= 10; // 10件未満なら最終ページとみなす
+}
+
+// ── Google CSE search ──
+function searchGoogle(q, grid, metaEl, page) {
+  return new Promise((resolve, reject) => {
+    if (!cseReady) { searchHasMore = false; reject(new Error('CSE not ready')); return; }
+    const start = (page - 1) * 10 + 1;
+
+    window.__cseSearchCallback = function(results) {
+      if (!results || results.length === 0) { searchHasMore = false; reject(new Error('no results')); return; }
+      const videos = [];
+      const seen = new Set();
+      results.forEach(r => {
+        const id = extractVideoId(r.unescapedUrl || r.url || '');
+        if (id && id.length === 11 && !seen.has(id)) {
+          seen.add(id);
+          videos.push({ videoId: id, title: r.titleNoFormatting || r.title || '' });
+        }
+      });
+      if (videos.length === 0) { searchHasMore = false; reject(new Error('no videos')); return; }
+      if (metaEl) metaEl.innerHTML = `<span class="engine-tag">🔍 Google CSE</span> ${videos.length} 件`;
+      renderCards(videos, grid);
+      searchHasMore = results.length >= 10;
+      resolve();
+    };
+
+    const el = google.search.cse.element.getElement('liteCse');
+    if (!el) { searchHasMore = false; reject(new Error('no element')); return; }
+    el.execute(q + ' site:youtube.com', { start });
+  });
+}
+
+function extractVideoId(str) {
+  const m = str.match(/(?:v=|vi\/|youtu\.be\/|embed\/|v%3D)([a-zA-Z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+
+// ────────────────────────────────────────
+//  RENDER CARDS
+// ────────────────────────────────────────
+function renderCards(items, container) {
+  items.forEach(v => {
+    const id = v.videoId || v.id || '';
+    if (!id) return;
+
+    const title  = v.title || '(タイトルなし)';
+    const author = v.author || '';
+    const views  = v.viewCount ? formatNum(v.viewCount) + ' 回視聴' : '';
+    const pub    = v.publishedText || '';
+    const dur    = v.lengthSeconds ? fmtDuration(v.lengthSeconds) : '';
+
+    // サムネイル: YouTube CDN直接（確実に表示される）
+    const thumb = `https://i.ytimg.com/vi/${id}/mqdefault.jpg`;
+
+    // チャンネルアバター
+    let avatarSrc = '';
+    if (Array.isArray(v.authorThumbnails) && v.authorThumbnails.length) {
+      avatarSrc = v.authorThumbnails[0].url || '';
+    }
+    // 頭文字フォールバック用の色（チャンネル名ハッシュで決定）
+    const avatarColors = ['#e05','#e60','#0a8','#07c','#60d','#c40','#09a'];
+    const avatarColor = avatarColors[(author.charCodeAt(0) || 0) % avatarColors.length];
+    const avatarInitial = (author || '?').charAt(0).toUpperCase();
+
+    const channelId = v.authorId || '';
+    const meta = [views, pub].filter(Boolean).join(' • ');
+
+    const card = document.createElement('div');
+    card.className = 'video-card';
+    card.onclick = () => openVideo(id, title);
+
+    // アバター要素（クリックでチャンネルへ）
+    const avatarEl = document.createElement('div');
+    avatarEl.className = 'card-avatar';
+    avatarEl.style.background = avatarColor;
+    avatarEl.textContent = avatarInitial;
+    avatarEl.title = author;
+    if (channelId) {
+      avatarEl.style.cursor = 'pointer';
+      avatarEl.onclick = (e) => { e.stopPropagation(); openChannel(channelId); };
+    }
+    if (avatarSrc) {
+      const img = document.createElement('img');
+      img.src = avatarSrc; img.alt = ''; img.loading = 'lazy';
+      img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%';
+      img.onerror = () => img.remove();
+      avatarEl.prepend(img);
+    }
+
+    card.innerHTML = `
+      <div class="thumb-wrap">
+        <img src="${thumb}" alt="${escHtml(title)}" loading="lazy"
+             onerror="this.src='https://i.ytimg.com/vi/${id}/hqdefault.jpg'">
+        ${dur ? `<span class="duration-badge">${dur}</span>` : ''}
+      </div>
+      <div class="card-info">
+        <div class="card-details">
+          <div class="card-title">${escHtml(title)}</div>
+          <div class="card-meta">
+            ${author && channelId
+              ? `<span class="card-author-link" onclick="event.stopPropagation();openChannel('${escAttr(channelId)}')">${escHtml(author)}</span>${meta ? ' • ' + escHtml(meta) : ''}`
+              : escHtml([author, ...meta.split(' • ')].filter(Boolean).join(' • '))}
+          </div>
+        </div>
+      </div>
+    `;
+    card.querySelector('.card-info').prepend(avatarEl);
+    container.appendChild(card);
+  });
+}
+
+// ────────────────────────────────────────
+//  WATCH PAGE
+// ────────────────────────────────────────
+
+async function fetchKahootKey() {
+  if (kahootKey) return kahootKey;
+
+  // ソース①: GitHub JSON {"value":"..."} — 直接+プロキシ
+  const ghUrl = 'https://raw.githubusercontent.com/choco-1515/About-youtube/refs/heads/main/edu/key.json';
+  const toGh  = r => { if (!r.ok) throw new Error('not ok'); return r.json().then(j => { if (!j.value) throw new Error('no value'); return j.value; }); };
+  const ghDirect  = [fetch(ghUrl).then(toGh)];
+  const ghProxied = CORS_PROXIES.map(fn => fetch(fn(ghUrl)).then(toGh));
+
+  // ソース②: Kahoot API テキスト — 直接+プロキシ
+  const kaUrl = 'https://apis.kahoot.it/media-api/youtube/key';
+  const toKa  = r => { if (!r.ok) throw new Error('not ok'); return r.text().then(t => { if (!t.trim()) throw new Error('empty'); return t.trim(); }); };
+  const kaDirect  = [fetch(kaUrl).then(toKa)];
+  const kaProxied = CORS_PROXIES.map(fn => fetch(fn(kaUrl)).then(toKa));
+
+  try {
+    kahootKey = await Promise.any([...ghDirect, ...ghProxied, ...kaDirect, ...kaProxied]);
+  } catch(e) {
+    kahootKey = 'AXH1ezl98LzVWaCsvrYl6EPuK2Nx5DyGLnRGo8WjE4R_i0VNY4Bpz4-U8ycF7sCaNBHYLEJFhEOVqon1TZnl1KjjPxTZ3QvOxEH_54yegfun9m58TZR_U8r0TUrBeGpgeXRIvL8mbzv7pLja2GNkA1KJGJZAJCuRXw==';
+  }
+  return kahootKey;
+}
+
+async function streamApiFetch(id) {
+  const path = `/api/stream/${id}`;
+  const toJson = r => { if (!r.ok) throw new Error('not ok'); return r.json(); };
+  const direct  = STREAM_APIS.map(base => fetch(base + path).then(toJson));
+  const proxied = CORS_PROXIES.flatMap(fn =>
+    STREAM_APIS.map(base => fetch(fn(base + path)).then(toJson))
+  );
+  return Promise.any([...direct, ...proxied]);
+}
+
+// encあり（Kahoot鍵付き）とencなし（シンプル）の2種を返す
+function buildEduUrls(id, key, controls, fs, hideTitle) {
+  const base = `https://www.youtubeeducation.com/embed/${id}`;
+  const common = `autoplay=1&mute=0&controls=${controls}&start=0&origin=https%3A%2F%2Fcreate.kahoot.it&playsinline=1&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&fs=${fs}&cc_load_policy=0&enablejsapi=1`;
+  const forigin = encodeURIComponent('https://create.kahoot.it/learner/cb8cb5ae-d835-4c4a-bc2d-9cc78519d646/course/6fba06e3-1f76-47a8-9a4a-53c53eb86286/0');
+
+  // enc付き（フル）
+  const cfg  = encodeURIComponent(JSON.stringify({ enc: key || '', hideTitle }));
+  const full = `${base}?${common}&widgetid=1&forigin=${forigin}&aoriginsup=1&vf=6&embed_config=${cfg}`;
+
+  // encなし（シンプル）— フォールバック
+  const simple = `${base}?${common}&modestbranding=1`;
+
+  return [full, simple];
+}
+
+function openVideo(id, title) {
+  currentVideoId = id;
+  currentPlayMode = 'nocookie';
+  currentStreamData = null;
+  watchDescExpanded = false;
+  currentCommentSort = 'top';
+  currentCommentContinuation = null;
+  navigate('watch');
+  document.getElementById('watch-title-el').textContent = title;
+  document.getElementById('watch-meta-el').textContent = '';
+  document.getElementById('watch-stats-el').innerHTML = '';
+  document.getElementById('watch-stats-el').classList.add('hidden');
+  document.getElementById('stream-status').textContent = '';
+  document.getElementById('watch-desc-wrap').classList.add('hidden');
+  document.getElementById('watch-desc-el').textContent = '';
+  // チャンネル行リセット
+  document.getElementById('watch-channel-row').classList.add('hidden');
+  document.getElementById('watch-ch-avatar').innerHTML = '';
+  document.getElementById('watch-ch-name').textContent = '';
+  document.getElementById('watch-ch-sub').textContent = '';
+  document.getElementById('related-grid').innerHTML = '';
+  document.getElementById('related-loader').classList.remove('hidden');
+  // HD リセット
+  currentAdaptiveFormats = null;
+  hdParsed = null;
+  if (hdAudioEl) { hdAudioEl.pause(); hdAudioEl.src = ''; hdAudioEl = null; }
+  document.getElementById('hd-controls').classList.add('hidden');
+  document.getElementById('hd-controls').innerHTML = '';
+  // コメントリセット
+  document.getElementById('watch-comments').classList.add('hidden');
+  document.getElementById('comments-list').innerHTML = '';
+  document.getElementById('comments-count-el').textContent = '';
+  document.getElementById('comments-more-btn').classList.add('hidden');
+  document.getElementById('sort-top').classList.add('active');
+  document.getElementById('sort-new').classList.remove('active');
+
+  // プレイヤーをすぐ表示（Nocookieデフォルト）
+  setPlayMode('nocookie', null);
+  buildModeButtons(null);
+
+  // choco-apiが先に返ったかどうかのフラグ（aijimy上書き防止用）
+  let chocoMetaReceived = false;
+
+  // ── メタデータをUIに反映する共通ヘルパー ──
+  function applyMeta(meta, fromChoco) {
+    if (!meta) return;
+    // choco済みならaijimyの遅延上書きは無視
+    if (!fromChoco && chocoMetaReceived) return;
+
+    if (fromChoco) chocoMetaReceived = true;
+
+    const pub      = meta.publishedText || '';
+    const author   = meta.author   || '';
+    const authorId = meta.authorId || '';
+
+    // チャンネル行（アバター＋名前＋登録者数）
+    if (author) {
+      const rowEl    = document.getElementById('watch-channel-row');
+      const avatarEl = document.getElementById('watch-ch-avatar');
+      const nameEl   = document.getElementById('watch-ch-name');
+      const subEl    = document.getElementById('watch-ch-sub');
+      const avatarColors = ['#e05','#e60','#0a8','#07c','#60d','#c40','#09a'];
+      avatarEl.style.background = avatarColors[(author.charCodeAt(0)||0) % avatarColors.length];
+      avatarEl.innerHTML = escHtml(author.charAt(0).toUpperCase());
+      // choco-apiのとき サムネイル取得試みる
+      if (fromChoco && meta.authorThumbnails && meta.authorThumbnails.length) {
+        const best = meta.authorThumbnails.reduce((a,b)=>(b.width||0)>(a.width||0)?b:a, meta.authorThumbnails[0]);
+        if (best.url) {
+          const img = document.createElement('img');
+          img.src = best.url; img.alt = '';
+          img.onerror = () => img.remove();
+          avatarEl.innerHTML = '';
+          avatarEl.appendChild(img);
+        }
+      }
+      nameEl.textContent = author;
+      const subCount = meta.subCountText || (meta.subscriberCount ? formatNum(meta.subscriberCount) + ' 人' : '');
+      subEl.textContent = subCount;
+      if (authorId) {
+        rowEl.onclick = () => openChannel(authorId);
+      } else {
+        rowEl.onclick = null;
+      }
+      rowEl.classList.remove('hidden');
+    }
+
+    // 投稿日のみ watch-meta-el に表示
+    const metaEl = document.getElementById('watch-meta-el');
+    metaEl.textContent = pub;
+
+    // タイトル更新
+    if (meta.title) document.getElementById('watch-title-el').textContent = meta.title;
+
+    // 統計行
+    const statsEl = document.getElementById('watch-stats-el');
+    const stats = [];
+    if (meta.viewCount) stats.push(`<span class="watch-stat"><svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg><strong>${formatNum(meta.viewCount)}</strong> 回視聴</span>`);
+    if (meta.likeCount) stats.push(`<span class="watch-stat"><svg viewBox="0 0 24 24"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-1.91l-.01-.01L23 10z"/></svg><strong>${formatNum(meta.likeCount)}</strong> いいね</span>`);
+    if (meta.subCountText || meta.subscriberCount) stats.push(`<span class="watch-stat"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg><strong>${meta.subCountText || formatNum(meta.subscriberCount)}</strong> 登録者</span>`);
+    if (stats.length) {
+      statsEl.innerHTML = stats.join('');
+      statsEl.classList.remove('hidden');
+    }
+
+    const desc = meta.description || '';
+    if (desc) {
+      document.getElementById('watch-desc-el').textContent = desc;
+      document.getElementById('watch-desc-wrap').classList.remove('hidden');
+      document.getElementById('watch-desc-toggle').textContent = 'もっと見る ▾';
+    }
+  }
+
+  // ── A) aijimy API — 高速初期メタデータ（先行表示） ──
+  aijimyFetch(id).then(aijimyMeta => {
+    if (aijimyMeta._raw) console.log('[aijimy raw]', aijimyMeta._raw);
+    applyMeta(aijimyMeta, false);
+  }).catch(() => {});
+
+  // ── B) 並列: choco-api（メタ本体）+ stream API + Kahoot キー ──
+  //   A) videos/:id … メタデータ＋ストリームURL＋関連動画が全部入り
+  //   B) stream API … 専用キャッシュ済みストリームURL (補完用)
+  //   C) Kahoot キー … Edu URL 生成用
+  Promise.all([
+    chocoFetch(`/api/videos/${id}`).catch(() => null),
+    streamApiFetch(id).catch(() => null),
+    fetchKahootKey()
+  ]).then(([videoAll, streamData, _key]) => {
+    // ストリームデータの選定: videos/:id に formatStreams があればそちら優先
+    const hasVideoAllStreams = videoAll &&
+      ((videoAll.formatStreams && videoAll.formatStreams.length) ||
+       videoAll.hlsUrl || videoAll.dashUrl);
+    const bestStream = hasVideoAllStreams ? videoAll : (streamData || null);
+    currentStreamData = bestStream;
+    currentAdaptiveFormats = (videoAll && videoAll.adaptiveFormats) || (streamData && streamData.adaptiveFormats) || null;
+    hdParsed = parseAdaptiveFormats(currentAdaptiveFormats);
+    buildModeButtons(bestStream);
+
+    // choco-apiのメタデータで上書き（aijimy結果を置き換え）
+    applyMeta(videoAll, true);
+
+    // コメント読み込み開始
+    loadComments(id, 'top', null);
+
+    // 関連動画: video-all の recommendedVideos → なければ検索フォールバック
+    const related = videoAll && videoAll.recommendedVideos && videoAll.recommendedVideos.length > 0
+      ? videoAll.recommendedVideos : null;
+    if (related) {
+      renderRelated(related.slice(0, 20));
+    } else {
+      loadRelatedBySearch(title);
+    }
+  });
+}
+
+function buildModeButtons(streamData) {
+  const modesEl = document.getElementById('player-modes');
+  modesEl.innerHTML = '';
+
+  const addLabel = (text) => {
+    const s = document.createElement('span');
+    s.className = 'mode-group-label';
+    s.textContent = text;
+    modesEl.appendChild(s);
+  };
+  const addBtn = (label, mode) => {
+    const b = document.createElement('button');
+    b.className = 'mode-btn' + (currentPlayMode === mode ? ' active' : '');
+    b.textContent = label;
+    b.onclick = () => setPlayMode(mode, currentStreamData);
+    b.dataset.mode = mode;
+    modesEl.appendChild(b);
+  };
+
+  addLabel('▶ 再生方法');
+  addBtn('Nocookie', 'nocookie');
+  addBtn('Edu①', 'edu1');
+  addBtn('Edu②', 'edu2');
+  addBtn('Edu③', 'edu3');
+  addBtn('Edu④', 'edu4');
+  if (streamData && ((streamData.formatStreams && streamData.formatStreams.length) || streamData.hlsUrl)) {
+    addBtn('Stream', 'stream');
+  }
+  if (hdParsed && hdParsed.videos.length > 0) {
+    addLabel('HD');
+    addBtn('高画質', 'hd');
+  }
+}
+
+function setPlayMode(mode, streamData) {
+  currentPlayMode = mode;
+
+  // ボタンのactive更新
+  document.querySelectorAll('.mode-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.mode === mode);
+  });
+
+  const wrap = document.getElementById('watch-player-wrap');
+  const id   = currentVideoId;
+  const statusEl = document.getElementById('stream-status');
+  statusEl.textContent = '';
+  wrap.innerHTML = '';
+
+  if (mode === 'nocookie') {
+    const f = document.createElement('iframe');
+    f.src = `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0&modestbranding=1`;
+    f.allow = 'autoplay; fullscreen; encrypted-media; picture-in-picture';
+    f.allowFullscreen = true;
+    wrap.appendChild(f);
+
+  } else if (mode === 'edu1' || mode === 'edu2' || mode === 'edu3' || mode === 'edu4') {
+    const key = kahootKey || '';
+    const configs = {
+      edu1: [1, 1, false],
+      edu2: [1, 1, true],
+      edu3: [0, 0, false],
+      edu4: [0, 0, true]
+    };
+    const [controls, fs, hideTitle] = configs[mode];
+    const labels = { edu1:'コントロールあり', edu2:'タイトル非表示', edu3:'コントロールなし', edu4:'コントロールなし・タイトル非表示' };
+    statusEl.textContent = `Edu (${labels[mode]})`;
+
+    // srcdoc でラッパーページを作りその中にEduをiframe埋め込みする
+    // sandbox は使わない（autoplay/fullscreen 権限を遮断するため）
+    // srcdoc 内で YouTube エラーを検知 → シンプルURLに自動フォールバック
+    const [fullUrl, simpleUrl] = buildEduUrls(id, key, controls, fs, hideTitle);
+    const esc = s => s.replace(/\\/g,'\\\\').replace(/`/g,'\\`').replace(/\$/g,'\\$');
+    const srcdoc = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<meta name="referrer" content="no-referrer-when-downgrade">
+<style>*{margin:0;padding:0}html,body{width:100%;height:100%;overflow:hidden;background:#000}
+#f{position:absolute;inset:0;width:100%;height:100%;border:none}
+#fb{display:none;position:absolute;inset:0;align-items:center;justify-content:center;flex-direction:column;background:#111;color:#aaa;font-family:sans-serif;font-size:14px;gap:12px}
+#fb.show{display:flex}
+</style></head><body>
+<iframe id="f" src="${fullUrl.replace(/"/g,'&quot;')}"
+  allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+  allowfullscreen></iframe>
+<div id="fb">
+  <span>⚠ Edu（フル）再生不可 → シンプルモードで再試行中...</span>
+</div>
+<script>
+var tried=false;
+window.addEventListener('message',function(e){
+  try{
+    var d=typeof e.data==='string'?JSON.parse(e.data):e.data;
+    if((d.event==='onError'||d.event==='infoDelivery')&&!tried){
+      var code=d.info||d.info&&d.info.errorCode;
+      if([2,5,100,101,150,152].indexOf(Number(code))>-1){
+        tried=true;
+        document.getElementById('fb').classList.add('show');
+        document.getElementById('f').src='${esc(simpleUrl)}';
+        setTimeout(function(){document.getElementById('fb').classList.remove('show');},2000);
+      }
+    }
+  }catch(x){}
+});
+<\/script>
+</body></html>`;
+    const outer = document.createElement('iframe');
+    outer.srcdoc = srcdoc;
+    outer.setAttribute('allow', 'autoplay; fullscreen; encrypted-media; picture-in-picture; autoplay');
+    outer.setAttribute('allowfullscreen', '');
+    outer.setAttribute('referrerpolicy', 'no-referrer-when-downgrade');
+    wrap.appendChild(outer);
+
+  } else if (mode === 'stream') {
+    if (!streamData) { statusEl.textContent = 'ストリームデータなし'; return; }
+
+    // まず HLS を試す
+    if (streamData.hlsUrl) {
+      statusEl.textContent = '📡 HLS ストリーム';
+      const v = document.createElement('video');
+      v.controls = true;
+      v.autoplay = true;
+      v.src = streamData.hlsUrl;
+      wrap.appendChild(v);
+      return;
+    }
+
+    // formatStreams から最高画質を選択
+    const streams = streamData.formatStreams || [];
+    if (streams.length === 0) { statusEl.textContent = 'ストリームURLなし'; return; }
+    const prefer = ['720p','480p','360p','240p','144p'];
+    let best = streams[0];
+    for (const q of prefer) {
+      const found = streams.find(s => s.quality === q || (s.qualityLabel && s.qualityLabel.startsWith(q)));
+      if (found) { best = found; break; }
+    }
+    statusEl.textContent = `🎬 直接ストリーム ${best.qualityLabel || best.quality || ''}`;
+    const v = document.createElement('video');
+    v.controls = true;
+    v.autoplay = true;
+    v.src = best.url;
+    v.onerror = () => { statusEl.textContent = '⚠ ストリーム読み込み失敗（Nocookieに切替を推奨）'; };
+    wrap.appendChild(v);
+
+  } else if (mode === 'hd') {
+    // HD モード切替時に古い音声を停止
+    if (hdAudioEl) { hdAudioEl.pause(); hdAudioEl.src = ''; hdAudioEl = null; }
+    const hdCtrl = document.getElementById('hd-controls');
+    if (!hdParsed || hdParsed.videos.length === 0) {
+      statusEl.textContent = '⚠ 高画質ストリームが見つかりません';
+      hdCtrl.classList.add('hidden');
+      return;
+    }
+    hdCtrl.classList.remove('hidden');
+    buildHDControls(hdParsed, wrap, statusEl);
+    return;
+  }
+
+  // HD 以外のモードに切り替えるとき hd-controls を隠す
+  if (hdAudioEl) { hdAudioEl.pause(); hdAudioEl.src = ''; hdAudioEl = null; }
+  document.getElementById('hd-controls').classList.add('hidden');
+}
+
+// ────────────────────────────────────────
+//  HD PLAYER
+// ────────────────────────────────────────
+function parseAdaptiveFormats(formats) {
+  if (!Array.isArray(formats) || formats.length === 0) return { videos: [], audios: [] };
+
+  const videos = [];
+  const audios = [];
+  const qualityOrder = ['2160p','1440p','1080p','720p','480p','360p','240p','144p'];
+
+  // 映像: 画質ごとに最も互換性の高いコーデックを1つ選ぶ (avc1 > av01 > vp9)
+  qualityOrder.forEach(q => {
+    const cands = formats.filter(f =>
+      f.type && f.type.startsWith('video/') && f.url &&
+      (f.qualityLabel || f.quality || '').startsWith(q)
+    );
+    if (!cands.length) return;
+    const pick =
+      cands.find(f => f.type.includes('avc1')) ||
+      cands.find(f => f.type.includes('av01') && f.type.includes('mp4')) ||
+      cands.find(f => f.type.includes('vp9')) ||
+      cands[0];
+    if (pick && pick.url) videos.push({ label: q, url: pick.url, type: pick.type, bitrate: pick.bitrate || 0 });
+  });
+
+  // 音声: AAC(mp4) 優先、次に Opus 高→低
+  const aacList  = formats.filter(f => f.type && f.type.includes('audio/mp4') && f.url)
+                          .sort((a,b) => (b.bitrate||0)-(a.bitrate||0));
+  const opusList = formats.filter(f => f.type && f.type.includes('opus') && f.url)
+                          .sort((a,b) => (b.bitrate||0)-(a.bitrate||0));
+
+  aacList.forEach((f, i) => {
+    const kb = Math.round((f.bitrate||0)/1000);
+    audios.push({ label: `AAC ${kb}kbps`, url: f.url, type: f.type });
+  });
+  opusList.forEach((f, i) => {
+    const kb = Math.round((f.bitrate||0)/1000);
+    audios.push({ label: `Opus ${kb}kbps`, url: f.url, type: f.type });
+  });
+
+  return { videos, audios };
+}
+
+function buildHDControls(parsed, wrap, statusEl) {
+  // ── コントロール UI ──
+  const ctrl = document.getElementById('hd-controls');
+  ctrl.innerHTML = `
+    <div class="hd-group">
+      <span class="hd-label">🎬 映像</span>
+      <select class="hd-select" id="hd-vid-sel">
+        ${parsed.videos.map((v,i) => `<option value="${i}">${escHtml(v.label)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="hd-sep"></div>
+    <div class="hd-group">
+      <span class="hd-label">🎵 音声</span>
+      <select class="hd-select" id="hd-aud-sel">
+        ${parsed.audios.map((a,i) => `<option value="${i}">${escHtml(a.label)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="hd-sep"></div>
+    <div class="hd-vol-wrap">
+      <span class="hd-vol-icon" onclick="toggleHDMute()">🔊</span>
+      <input type="range" class="hd-vol" id="hd-vol-slider" min="0" max="1" step="0.02" value="1"
+             oninput="onHDVolume(this.value)" style="width:80px">
+    </div>
+  `;
+
+  // セレクト変更イベント
+  document.getElementById('hd-vid-sel').onchange = () => applyHDStreams();
+  document.getElementById('hd-aud-sel').onchange = () => applyHDStreams();
+
+  applyHDStreams();
+}
+
+function applyHDStreams() {
+  if (!hdParsed) return;
+  const vidIdx = parseInt(document.getElementById('hd-vid-sel').value) || 0;
+  const audIdx = parseInt(document.getElementById('hd-aud-sel').value) || 0;
+  const vStream = hdParsed.videos[vidIdx];
+  const aStream = hdParsed.audios[audIdx];
+  if (!vStream) return;
+
+  const wrap = document.getElementById('watch-player-wrap');
+  const statusEl = document.getElementById('stream-status');
+
+  // 既存の音声を止める
+  if (hdAudioEl) { hdAudioEl.pause(); hdAudioEl.src = ''; }
+
+  wrap.innerHTML = '';
+  statusEl.textContent = `🎬 HD: ${vStream.label}  🎵 ${aStream ? aStream.label : 'なし'}`;
+
+  // ── 映像要素（映像専用ストリーム）──
+  const vid = document.createElement('video');
+  vid.controls = true;
+  vid.autoplay = true;
+  vid.muted = true;                   // 映像専用のためミュート（音はaudioElから）
+  vid.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;background:#000';
+  vid.src = vStream.url;
+  vid.onerror = () => { statusEl.textContent = '⚠ 映像ストリーム読み込み失敗'; };
+  wrap.appendChild(vid);
+
+  if (!aStream) { hdAudioEl = null; return; }
+
+  // ── 音声要素（音声専用ストリーム）──
+  const aud = document.createElement('audio');
+  aud.src = aStream.url;
+  aud.volume = parseFloat(document.getElementById('hd-vol-slider')?.value || 1);
+  aud.onerror = () => { statusEl.textContent += ' ⚠音声エラー'; };
+  hdAudioEl = aud;
+
+  // ── 同期ロジック ──
+  const syncAud = () => {
+    if (Math.abs(aud.currentTime - vid.currentTime) > 0.2) {
+      aud.currentTime = vid.currentTime;
+    }
+  };
+
+  vid.addEventListener('play', () => {
+    aud.currentTime = vid.currentTime;
+    aud.play().catch(() => {});
+  });
+  vid.addEventListener('pause', () => aud.pause());
+  vid.addEventListener('seeking', () => { aud.currentTime = vid.currentTime; });
+  vid.addEventListener('seeked',  () => {
+    aud.currentTime = vid.currentTime;
+    if (!vid.paused) aud.play().catch(() => {});
+  });
+  vid.addEventListener('timeupdate', syncAud);
+  vid.addEventListener('ratechange', () => { aud.playbackRate = vid.playbackRate; });
+  vid.addEventListener('ended', () => aud.pause());
+}
+
+function onHDVolume(val) {
+  if (hdAudioEl) hdAudioEl.volume = parseFloat(val);
+  const icon = document.getElementById('hd-vol-slider')?.previousElementSibling;
+  if (icon) icon.textContent = parseFloat(val) === 0 ? '🔇' : '🔊';
+}
+
+function toggleHDMute() {
+  const slider = document.getElementById('hd-vol-slider');
+  if (!slider) return;
+  const isMuted = parseFloat(slider.value) === 0;
+  slider.value = isMuted ? 1 : 0;
+  onHDVolume(slider.value);
+}
+
+function renderRelated(videos) {
+  const grid = document.getElementById('related-grid');
+  document.getElementById('related-loader').classList.add('hidden');
+  grid.innerHTML = '';
+  if (!videos || videos.length === 0) { grid.innerHTML = '<div style="font-size:13px;color:var(--muted)">関連動画なし</div>'; return; }
+  videos.forEach(v => {
+    const id    = v.videoId || v.id || '';
+    if (!id) return;
+    const title = v.title || '';
+    const author = v.author || v.authorId || '';
+    const dur   = v.lengthSeconds ? fmtDuration(v.lengthSeconds) : '';
+    const views = v.viewCount ? formatNum(v.viewCount) + ' 回' : '';
+
+    const card = document.createElement('div');
+    card.className = 'related-card';
+    card.onclick = () => openVideo(id, title);
+    card.innerHTML = `
+      <div class="related-thumb">
+        <img src="https://i.ytimg.com/vi/${id}/mqdefault.jpg" alt="" loading="lazy"
+             onerror="this.src='https://i.ytimg.com/vi/${id}/hqdefault.jpg'">
+        ${dur ? `<span class="related-dur">${dur}</span>` : ''}
+      </div>
+      <div class="related-info">
+        <div class="related-title">${escHtml(title)}</div>
+        <div class="related-meta">${escHtml([author, views].filter(Boolean).join(' • '))}</div>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+async function loadRelatedBySearch(title) {
+  try {
+    const q = title.split(/[\s　]/).slice(0, 4).join(' ');
+    const data = await chocoFetch(`/api/search?q=${encodeURIComponent(q)}&type=video&region=JP`);
+    const items = (data.results || data).filter(v => (v.videoId || v.id) !== currentVideoId);
+    renderRelated(items.slice(0, 20));
+  } catch(e) {
+    document.getElementById('related-loader').classList.add('hidden');
+  }
+}
+
+function toggleWatchDesc() {
+  watchDescExpanded = !watchDescExpanded;
+  const el = document.getElementById('watch-desc-el');
+  const tog = document.getElementById('watch-desc-toggle');
+  el.classList.toggle('expanded', watchDescExpanded);
+  tog.textContent = watchDescExpanded ? '閉じる ▴' : 'もっと見る ▾';
+}
+
+// ────────────────────────────────────────
+//  COMMENTS
+// ────────────────────────────────────────
+async function loadComments(videoId, sortBy, continuation) {
+  if (commentFetching) return;
+  commentFetching = true;
+
+  const listEl   = document.getElementById('comments-list');
+  const loaderEl = document.getElementById('comments-loader');
+  const moreBtn  = document.getElementById('comments-more-btn');
+  const countEl  = document.getElementById('comments-count-el');
+  const wrap     = document.getElementById('watch-comments');
+
+  loaderEl.classList.remove('hidden');
+  moreBtn.classList.add('hidden');
+
+  try {
+    let path = `/api/comments/${videoId}?sort_by=${sortBy}&source=youtube`;
+    if (continuation) path += `&continuation=${encodeURIComponent(continuation)}`;
+
+    const data = await chocoFetch(path);
+    loaderEl.classList.add('hidden');
+
+    const comments = data.comments || data;
+    if (!Array.isArray(comments) || comments.length === 0) {
+      if (!continuation) {
+        listEl.innerHTML = '<div class="comments-empty">コメントを取得できませんでした。</div>';
+      }
+      currentCommentContinuation = null;
+      moreBtn.classList.add('hidden');
+      commentFetching = false;
+      return;
+    }
+
+    // コメント総数表示（初回のみ）
+    if (!continuation && data.commentCount) {
+      countEl.textContent = formatNum(data.commentCount) + ' 件';
+    }
+
+    wrap.classList.remove('hidden');
+    renderComments(comments, !!continuation, listEl);
+
+    // continuation token（次ページ）
+    const nextToken = data.continuation || null;
+    currentCommentContinuation = nextToken;
+    if (nextToken) {
+      moreBtn.classList.remove('hidden');
+    } else {
+      moreBtn.classList.add('hidden');
+    }
+  } catch(e) {
+    loaderEl.classList.add('hidden');
+    if (!continuation) {
+      document.getElementById('watch-comments').classList.remove('hidden');
+      document.getElementById('comments-list').innerHTML = '<div class="comments-empty">コメントの読み込みに失敗しました。</div>';
+    }
+  }
+  commentFetching = false;
+}
+
+function renderComments(comments, append, listEl) {
+  if (!append) listEl.innerHTML = '';
+  const avatarColors = ['#e05','#e60','#0a8','#07c','#60d','#c40','#09a'];
+
+  comments.forEach(c => {
+    const author    = c.author || c.authorId || '匿名';
+    const text      = c.content || c.contentHtml?.replace(/<[^>]+>/g,'') || '';
+    const likes     = c.likeCount ? formatNum(c.likeCount) : '';
+    const pub       = c.publishedText || '';
+    const isOwner   = c.authorIsChannelOwner || false;
+    const isPinned  = c.isPinned || false;
+    const hasHeart  = c.creatorHeart || false;
+
+    // アバター
+    const color = avatarColors[(author.charCodeAt(0) || 0) % avatarColors.length];
+    const initial = author.charAt(0).toUpperCase();
+    let avatarHtml = '';
+    const thumbs = c.authorThumbnails || c.authorThumbnail;
+    if (thumbs) {
+      const src = Array.isArray(thumbs) ? (thumbs[0]?.url || '') : (thumbs || '');
+      if (src) avatarHtml = `<img src="${escHtml(src)}" alt="" loading="lazy" onerror="this.remove()">`;
+    }
+
+    const item = document.createElement('div');
+    item.className = 'comment-item';
+
+    const isLong = text.length > 200 || text.split('\n').length > 4;
+    const textId = 'ct-' + Math.random().toString(36).slice(2);
+
+    item.innerHTML = `
+      <div class="comment-avatar" style="background:${color}">${avatarHtml}${!avatarHtml ? initial : ''}</div>
+      <div class="comment-body">
+        <div class="comment-author">
+          ${escHtml(author)}
+          ${isOwner ? '<span class="comment-owner-badge">チャンネル主</span>' : ''}
+          ${isPinned ? '<span class="comment-pinned">📌 固定</span>' : ''}
+        </div>
+        <div class="comment-text${isLong ? ' clamped' : ''}" id="${textId}">${escHtml(text)}</div>
+        ${isLong ? `<span class="comment-expand" onclick="expandComment('${textId}',this)">もっと見る</span>` : ''}
+        <div class="comment-foot">
+          ${likes ? `<span class="comment-likes"><svg viewBox="0 0 24 24"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-1.91l-.01-.01L23 10z"/></svg>${escHtml(likes)}</span>` : ''}
+          ${hasHeart ? '<span class="comment-heart">❤️ チャンネル主がいいね</span>' : ''}
+          ${pub ? `<span>${escHtml(pub)}</span>` : ''}
+        </div>
+      </div>
+    `;
+    listEl.appendChild(item);
+  });
+}
+
+function expandComment(id, btn) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.remove('clamped');
+  btn.remove();
+}
+
+function switchCommentSort(sort) {
+  if (sort === currentCommentSort) return;
+  currentCommentSort = sort;
+  currentCommentContinuation = null;
+  document.getElementById('sort-top').classList.toggle('active', sort === 'top');
+  document.getElementById('sort-new').classList.toggle('active', sort === 'new');
+  document.getElementById('comments-list').innerHTML = '';
+  document.getElementById('comments-count-el').textContent = '';
+  commentFetching = false;
+  loadComments(currentVideoId, sort, null);
+}
+
+function loadMoreComments() {
+  if (!currentCommentContinuation) return;
+  loadComments(currentVideoId, currentCommentSort, currentCommentContinuation);
+}
+
+// ────────────────────────────────────────
+//  CHANNEL PAGE
+// ────────────────────────────────────────
+async function openChannel(channelId) {
+  if (!channelId) return;
+  currentChannelId = channelId;
+  currentChTab     = 'videos';
+  currentChPage    = 1;
+  chHasMore        = false;
+  chDescExpanded   = false;
+  chVideosSortBy   = 'newest';
+  chFetching       = false;
+  navigate('channel');
+  window.scrollTo(0, 0);
+
+  // リセット
+  document.getElementById('ch-name-el').textContent  = '読み込み中...';
+  document.getElementById('ch-sub-el').textContent   = '';
+  document.getElementById('ch-desc-el').textContent  = '';
+  document.getElementById('ch-desc-wrap').classList.remove('expanded');
+  document.getElementById('ch-desc-more').textContent = 'もっと見る ▾';
+  document.getElementById('ch-avatar').innerHTML     = '';
+  const bannerImg = document.getElementById('ch-banner-img');
+  bannerImg.style.display = 'none';
+  // タブリセット
+  document.querySelectorAll('.ch-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'videos'));
+  document.getElementById('ch-content').innerHTML = '<div class="loader"><div class="loader-spinner"></div><br>読み込み中...</div>';
+
+  // チャンネル基本情報取得
+  let info = null;
+  try {
+    info = await chocoFetch(`/api/channels/${channelId}`);
+  } catch(e) {
+    document.getElementById('ch-content').innerHTML = '<div class="ch-empty">チャンネル情報を取得できませんでした。</div>';
+    return;
+  }
+
+  // バナー
+  const banners = info.authorBanners || [];
+  if (banners.length) {
+    const bestBanner = banners.reduce((a, b) => (b.width || 0) > (a.width || 0) ? b : a, banners[0]);
+    if (bestBanner.url) { bannerImg.src = bestBanner.url; bannerImg.style.display = 'block'; }
+  }
+
+  // アバター
+  const thumbs = info.authorThumbnails || [];
+  const avatarEl = document.getElementById('ch-avatar');
+  const avatarColors = ['#e05','#e60','#0a8','#07c','#60d','#c40','#09a'];
+  const author = info.author || '';
+  avatarEl.style.background = avatarColors[(author.charCodeAt(0)||0) % avatarColors.length];
+  avatarEl.textContent = author.charAt(0).toUpperCase();
+  if (thumbs.length) {
+    const best = thumbs.reduce((a, b) => (b.width||0) > (a.width||0) ? b : a, thumbs[0]);
+    if (best.url) {
+      const img = document.createElement('img');
+      img.src = best.url; img.alt = '';
+      img.onerror = () => img.remove();
+      avatarEl.prepend(img);
+    }
+  }
+
+  // 名前・登録者数
+  const subCount = info.subCountText || (info.subCount ? formatNum(info.subCount) + ' 人' : '');
+  document.getElementById('ch-name-el').innerHTML =
+    escHtml(author) + (info.authorVerified ? ' <span class="ch-verified">✓</span>' : '');
+  document.getElementById('ch-sub-el').textContent = subCount ? `登録者 ${subCount}` : '';
+
+  // 説明
+  const desc = info.description || '';
+  document.getElementById('ch-desc-el').textContent = desc;
+  document.getElementById('ch-desc-more').style.display = desc ? 'block' : 'none';
+
+  // 動画タブを初期ロード
+  await loadChContent('videos', 1, false);
+}
+
+async function switchChTab(tab) {
+  if (tab === currentChTab && !chFetching) return;
+  currentChTab  = tab;
+  currentChPage = 1;
+  chHasMore     = false;
+  chFetching    = false;
+
+  document.querySelectorAll('.ch-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.getElementById('ch-content').innerHTML = '<div class="loader"><div class="loader-spinner"></div><br>読み込み中...</div>';
+  await loadChContent(tab, 1, false);
+}
+
+async function loadChContent(tab, page, append) {
+  if (chFetching) return;
+  chFetching = true;
+  const id = currentChannelId;
+
+  const showLoader = (show) => {
+    let l = document.getElementById('ch-inline-loader');
+    if (show && !l) {
+      l = document.createElement('div');
+      l.id = 'ch-inline-loader';
+      l.className = 'loader';
+      l.innerHTML = '<div class="loader-spinner" style="width:20px;height:20px;border-width:2px"></div>';
+      l.style.padding = '16px 0';
+      document.getElementById('ch-content').appendChild(l);
+    } else if (!show && l) l.remove();
+  };
+
+  try {
+    let data, items;
+
+    if (tab === 'videos') {
+      data  = await chocoFetch(`/api/channels/${id}/videos?sort_by=${chVideosSortBy}&page=${page}`);
+      items = data.videos || data;
+      renderChVideoTab(items, append, page);
+      chHasMore = Array.isArray(items) && items.length >= 10;
+
+    } else if (tab === 'shorts') {
+      data  = await chocoFetch(`/api/channels/${id}/shorts?page=${page}`);
+      items = data.videos || data;
+      renderChVideoTab(items, append, page);
+      chHasMore = Array.isArray(items) && items.length >= 10;
+
+    } else if (tab === 'streams') {
+      data  = await chocoFetch(`/api/channels/${id}/streams?page=${page}`);
+      items = data.videos || data;
+      renderChVideoTab(items, append, page);
+      chHasMore = Array.isArray(items) && items.length >= 10;
+
+    } else if (tab === 'playlists') {
+      data  = await chocoFetch(`/api/channels/${id}/playlists?page=${page}`);
+      items = data.playlists || data;
+      renderChPlaylists(items, append, page);
+      chHasMore = Array.isArray(items) && items.length >= 10;
+
+    } else if (tab === 'community') {
+      data  = await chocoFetch(`/api/channels/${id}/comments`);
+      items = data.comments || data;
+      renderChCommunity(items);
+      chHasMore = false;
+    }
+
+  } catch(e) {
+    if (!append) {
+      document.getElementById('ch-content').innerHTML = '<div class="ch-empty">コンテンツを取得できませんでした。</div>';
+    }
+  }
+
+  if (append) showLoader(false);
+  currentChPage = page;
+
+  // 続きボタン更新
+  let moreBtn = document.getElementById('ch-more-btn');
+  if (chHasMore) {
+    if (!moreBtn) {
+      moreBtn = document.createElement('button');
+      moreBtn.id = 'ch-more-btn';
+      moreBtn.className = 'ch-load-more-btn';
+      moreBtn.textContent = '続きを読み込む';
+      moreBtn.onclick = loadMoreChContent;
+      document.getElementById('ch-content').appendChild(moreBtn);
+    }
+  } else if (moreBtn) moreBtn.remove();
+
+  chFetching = false;
+}
+
+function renderChVideoTab(items, append, page) {
+  const content = document.getElementById('ch-content');
+  if (!append) {
+    content.innerHTML = '';
+    // 動画タブのみ並び替え
+    if (currentChTab === 'videos') {
+      const bar = document.createElement('div');
+      bar.className = 'ch-sort-bar';
+      bar.innerHTML = `<span class="ch-sort-label">並び替え</span>
+        <select class="ch-sort-sel" onchange="changeChSort(this.value)">
+          <option value="newest"  ${chVideosSortBy==='newest'  ?'selected':''}>新しい順</option>
+          <option value="popular" ${chVideosSortBy==='popular' ?'selected':''}>人気順</option>
+          <option value="oldest"  ${chVideosSortBy==='oldest'  ?'selected':''}>古い順</option>
+        </select>`;
+      content.appendChild(bar);
+    }
+  }
+
+  // グリッドを取得または作成
+  let grid = content.querySelector('.video-grid');
+  if (!grid) {
+    grid = document.createElement('div');
+    grid.className = 'video-grid';
+    content.appendChild(grid);
+  }
+
+  if (!Array.isArray(items) || items.length === 0) {
+    if (!append) grid.innerHTML = '<div class="ch-empty" style="grid-column:1/-1">動画がありません。</div>';
+    chHasMore = false;
+    return;
+  }
+  renderCards(items, grid);
+}
+
+function renderChPlaylists(items, append, page) {
+  const content = document.getElementById('ch-content');
+  if (!append) content.innerHTML = '';
+
+  let grid = content.querySelector('.playlist-grid');
+  if (!grid) { grid = document.createElement('div'); grid.className = 'playlist-grid'; content.appendChild(grid); }
+
+  if (!Array.isArray(items) || items.length === 0) {
+    if (!append) grid.innerHTML = '<div class="ch-empty" style="grid-column:1/-1">プレイリストがありません。</div>';
+    chHasMore = false;
+    return;
+  }
+
+  items.forEach(pl => {
+    const plId  = pl.playlistId || pl.id || '';
+    const title = pl.title || '';
+    const count = pl.videoCount != null ? pl.videoCount : '';
+    const thumb = pl.playlistThumbnail || (plId ? `https://i.ytimg.com/vi/${pl.videos?.[0]?.videoId||''}/mqdefault.jpg` : '');
+
+    const card = document.createElement('div');
+    card.className = 'playlist-card';
+    card.innerHTML = `
+      <div class="playlist-thumb">
+        ${thumb ? `<img src="${escHtml(thumb)}" alt="" loading="lazy" onerror="this.style.display='none'">` : ''}
+        ${count !== '' ? `<span class="playlist-count-badge">▶ ${escHtml(String(count))} 本</span>` : ''}
+      </div>
+      <div class="playlist-title">${escHtml(title)}</div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function renderChCommunity(posts) {
+  const content = document.getElementById('ch-content');
+  content.innerHTML = '';
+
+  if (!Array.isArray(posts) || posts.length === 0) {
+    content.innerHTML = '<div class="ch-empty">コミュニティ投稿がありません。</div>';
+    return;
+  }
+
+  const avatarColors = ['#e05','#e60','#0a8','#07c','#60d','#c40','#09a'];
+  posts.forEach(p => {
+    const author  = p.author || '';
+    const text    = p.content || p.contentHtml?.replace(/<[^>]+>/g,'') || '';
+    const likes   = p.likeCount ? formatNum(p.likeCount) : '';
+    const pub     = p.publishedText || '';
+    const color   = avatarColors[(author.charCodeAt(0)||0) % avatarColors.length];
+    const initial = author.charAt(0).toUpperCase();
+    let avatarHtml = '';
+    const thumbs = p.authorThumbnails || [];
+    if (thumbs.length) {
+      avatarHtml = `<img src="${escHtml(thumbs[0].url||'')}" alt="" onerror="this.remove()">`;
+    }
+
+    const el = document.createElement('div');
+    el.className = 'community-post';
+    el.innerHTML = `
+      <div class="post-author-row">
+        <div class="post-avatar" style="background:${color}">${avatarHtml}${!avatarHtml ? initial : ''}</div>
+        <div>
+          <div class="post-author-name">${escHtml(author)}</div>
+          ${pub ? `<div class="post-date">${escHtml(pub)}</div>` : ''}
+        </div>
+      </div>
+      <div class="post-body">${escHtml(text)}</div>
+      ${likes ? `<div class="post-likes">👍 ${escHtml(likes)}</div>` : ''}
+    `;
+    content.appendChild(el);
+  });
+}
+
+function changeChSort(val) {
+  chVideosSortBy = val;
+  currentChPage  = 1;
+  chHasMore      = false;
+  chFetching     = false;
+  loadChContent('videos', 1, false);
+}
+
+async function loadMoreChContent() {
+  const btn = document.getElementById('ch-more-btn');
+  if (btn) { btn.textContent = '読み込み中...'; btn.disabled = true; }
+  await loadChContent(currentChTab, currentChPage + 1, true);
+  if (btn) { btn.textContent = '続きを読み込む'; btn.disabled = false; }
+}
+
+function toggleChDesc() {
+  chDescExpanded = !chDescExpanded;
+  document.getElementById('ch-desc-wrap').classList.toggle('expanded', chDescExpanded);
+  document.getElementById('ch-desc-more').textContent = chDescExpanded ? '閉じる ▴' : 'もっと見る ▾';
+}
+
+// ────────────────────────────────────────
+//  SUGGESTIONS (Choco)
+// ────────────────────────────────────────
+function onSearchInput(val) {
+  clearTimeout(suggestTimer);
+  const q = sanitizeQuery(val);
+  if (!q) { hideSuggestions(); return; }
+  if (currentEngine !== 'choco') return;
+  suggestTimer = setTimeout(() => fetchSuggestions(q), 300);
+}
+
+async function fetchSuggestions(q) {
+  try {
+    const data = await chocoFetch(`/api/search/suggestions?q=${encodeURIComponent(q)}`);
+    const sug  = data.suggestions || data;
+    if (!Array.isArray(sug) || sug.length === 0) { hideSuggestions(); return; }
+    showSuggestions(sug.slice(0, 8));
+  } catch(e) { hideSuggestions(); }
+}
+
+function decodeHtml(str) {
+  const ta = document.createElement('textarea');
+  ta.innerHTML = str;
+  return ta.value;
+}
+
+function showSuggestions(list) {
+  const box = document.getElementById('suggestions-box');
+  box.innerHTML = '';
+  list.forEach(raw => {
+    const text = decodeHtml(raw);
+    const div = document.createElement('div');
+    div.className = 'suggestion-item';
+    div.innerHTML = `<svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>`;
+    const span = document.createElement('span');
+    span.textContent = text;
+    div.appendChild(span);
+    div.onmousedown = () => pickSuggestion(text);
+    box.appendChild(div);
+  });
+  box.classList.remove('hidden');
+}
+
+function pickSuggestion(q) {
+  document.getElementById('header-q').value = q;
+  hideSuggestions();
+  runSearch(q);
+}
+
+function onSearchFocus() {
+  const q = sanitizeQuery(document.getElementById('header-q').value);
+  if (q && currentEngine === 'choco') fetchSuggestions(q);
+}
+
+function onSearchBlur() {
+  // document click handler に任せるため不要だが、タブキー移動用に残す
+  setTimeout(hideSuggestions, 150);
+}
+
+function hideSuggestions() {
+  document.getElementById('suggestions-box').classList.add('hidden');
+}
+
+// search-wrap の外側クリックで確実に閉じる
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('#search-wrap')) hideSuggestions();
+});
+
+// Escape キーでも閉じる
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') hideSuggestions();
+});
+
+// ────────────────────────────────────────
+//  GOOGLE CSE INIT
+// ────────────────────────────────────────
+window.__gcse = {
+  parsetags: 'explicit',
+  initializationCallback: function() {
+    google.search.cse.element.render({
+      div: 'cse-hidden',
+      tag: 'searchresults-only',
+      gname: 'liteCse'
+    });
+    cseReady = true;
+  },
+  searchCallbacks: {
+    web: {
+      ready: function(name, q, promos, results) {
+        document.getElementById('cse-hidden').style.display = 'none';
+        if (window.__cseSearchCallback) {
+          window.__cseSearchCallback(results || []);
+          window.__cseSearchCallback = null;
+        }
+        return true;
+      }
+    }
+  }
+};
+
+// ────────────────────────────────────────
+//  UTILS
+// ────────────────────────────────────────
+function formatNum(n) {
+  if (!n) return '';
+  n = parseInt(n);
+  if (n >= 1e8) return Math.floor(n/1e8) + '億';
+  if (n >= 1e4) return Math.floor(n/1e4) + '万';
+  return n.toLocaleString();
+}
+
+function fmtDuration(sec) {
+  sec = parseInt(sec);
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  return `${m}:${String(s).padStart(2,'0')}`;
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escAttr(str) {
+  return String(str).replace(/'/g,"\\'");
+}
+</script>
+
+<!-- Google CSE (非同期読み込み) -->
+<script async src="https://cse.google.com/cse.js?cx=c04ec9d20c4264b0d"></script>
+</body>
+</html>
