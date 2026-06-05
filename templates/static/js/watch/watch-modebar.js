@@ -103,6 +103,8 @@ function initModeBar(videoId) {
     document.getElementById('qualityBar').removeAttribute('hidden');
     document.getElementById('vctrls').classList.add('vctrls-show');
     setOverlayQualMode('stream');
+    const _zb = document.getElementById('zernioBar');
+    if (_zb) _zb.removeAttribute('hidden');
     if (streamAltBarReady) {
       document.getElementById('streamAltBtn').removeAttribute('hidden');
       setInstanceLabel(cachedInvInstance);
@@ -160,6 +162,10 @@ function initModeBar(videoId) {
     document.getElementById('hqBar').removeAttribute('hidden');
     document.getElementById('vctrls').classList.add('vctrls-show');
     setOverlayQualMode('hq');
+    const _zbHQ = document.getElementById('zernioBar');
+    if (_zbHQ) _zbHQ.setAttribute('hidden', '');
+    const _zqbHQ = document.getElementById('zernioQualBar');
+    if (_zqbHQ) _zqbHQ.setAttribute('hidden', '');
     hqActive = true;
     player.removeAttribute('hidden');
     const _hqVidSel = document.getElementById('hqVideoSelect');
@@ -195,6 +201,10 @@ function initModeBar(videoId) {
     document.getElementById('qualityBar').setAttribute('hidden', '');
     document.getElementById('vctrls').classList.remove('vctrls-show');
     setOverlayQualMode('none');
+    const _zbNC = document.getElementById('zernioBar');
+    if (_zbNC) _zbNC.setAttribute('hidden', '');
+    const _zqbNC = document.getElementById('zernioQualBar');
+    if (_zqbNC) _zqbNC.setAttribute('hidden', '');
     const _ncStart = ct > 1 ? `&start=${Math.floor(ct)}` : '';
     const _ncPlay  = ct > 1 || getSettings().autoplay ? 1 : 0;
     const _ncStartSec = ct > 1 ? ct : 0;
@@ -287,6 +297,10 @@ function initModeBar(videoId) {
     document.getElementById('streamAltBtn').setAttribute('hidden', '');
     document.getElementById('qualityBar').setAttribute('hidden', '');
     document.getElementById('hqBar').setAttribute('hidden', '');
+    const _zbEdu = document.getElementById('zernioBar');
+    if (_zbEdu) _zbEdu.setAttribute('hidden', '');
+    const _zqbEdu = document.getElementById('zernioQualBar');
+    if (_zqbEdu) _zqbEdu.setAttribute('hidden', '');
     if (eduBar) eduBar.removeAttribute('hidden');
     document.getElementById('vctrls').classList.remove('vctrls-show');
     setOverlayQualMode('none');
@@ -345,6 +359,95 @@ function initModeBar(videoId) {
     }
   };
 
+  initZernioBar(videoId);
+}
+
+function initZernioBar(videoId) {
+  const zernioBar      = document.getElementById('zernioBar');
+  const zernioQualBar  = document.getElementById('zernioQualBar');
+  const zernioNormalBtn = document.getElementById('zernioNormalBtn');
+  const zernioVideoBtn  = document.getElementById('zernioVideoBtn');
+  const zernioStatus    = document.getElementById('zernioStatus');
+  const zernioQualBtns  = document.getElementById('zernioQualBtns');
+  if (!zernioBar || !zernioNormalBtn || !zernioVideoBtn) return;
+
+  const player = document.getElementById('videoPlayer');
+  let _zernioLoading = false;
+
+  async function _fetchZernio(formatId) {
+    if (_zernioLoading) return null;
+    _zernioLoading = true;
+    if (zernioStatus) {
+      zernioStatus.textContent = '取得中...';
+      zernioStatus.className = 'pc-alt-status';
+    }
+    try {
+      const res = await fetch(`/api/zerniostream/${encodeURIComponent(videoId)}?formatId=${formatId}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const url = (await res.text()).trim();
+      if (!url || !url.startsWith('http')) throw new Error('無効なURL');
+      if (zernioStatus) zernioStatus.textContent = '';
+      return url;
+    } catch (e) {
+      if (zernioStatus) {
+        zernioStatus.textContent = '取得失敗: ' + e.message;
+        zernioStatus.className = 'pc-alt-status stream-alt-fail';
+      }
+      return null;
+    } finally {
+      _zernioLoading = false;
+    }
+  }
+
+  // 通常ボタン（format 2: 360p 映像＋音声）
+  zernioNormalBtn.addEventListener('click', async () => {
+    if (zernioNormalBtn.classList.contains('active')) return;
+    zernioNormalBtn.classList.add('active');
+    zernioVideoBtn.classList.remove('active');
+    if (zernioQualBar) zernioQualBar.setAttribute('hidden', '');
+    if (zernioQualBtns) zernioQualBtns.querySelectorAll('.quality-btn').forEach(b => b.classList.remove('active'));
+
+    const ct = player.currentTime;
+    const wasPlaying = !player.paused;
+    const url = await _fetchZernio(2);
+    if (!url) { zernioNormalBtn.classList.remove('active'); return; }
+    player.muted = (typeof volState !== 'undefined') ? volState.muted : false;
+    player.src = url;
+    player.currentTime = ct;
+    if (wasPlaying) player.play().catch(() => {});
+  });
+
+  // 映像のみボタン
+  zernioVideoBtn.addEventListener('click', () => {
+    if (zernioVideoBtn.classList.contains('active')) return;
+    zernioVideoBtn.classList.add('active');
+    zernioNormalBtn.classList.remove('active');
+    if (zernioQualBar) zernioQualBar.removeAttribute('hidden');
+  });
+
+  // 映像のみ画質ボタン
+  if (zernioQualBtns) {
+    zernioQualBtns.querySelectorAll('.quality-btn').forEach(btn => {
+      const fid = parseInt(btn.dataset.fid, 10);
+      btn.addEventListener('click', async () => {
+        if (btn.classList.contains('active')) return;
+        zernioQualBtns.querySelectorAll('.quality-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        const ct = player.currentTime;
+        const wasPlaying = !player.paused;
+        const url = await _fetchZernio(fid);
+        if (!url) { btn.classList.remove('active'); return; }
+        player.muted = true;
+        player.src = url;
+        player.currentTime = ct;
+        if (wasPlaying) player.play().catch(() => {});
+      });
+    });
+  }
+
+  // ストリームモードがデフォルトなので最初から表示する
+  zernioBar.removeAttribute('hidden');
 }
 
 async function tryAutoplay(videoEl, audioEl) {
