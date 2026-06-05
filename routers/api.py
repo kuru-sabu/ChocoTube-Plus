@@ -13,184 +13,57 @@ from core import get_client, get_instances, proxy_parallel
 
 router = APIRouter()
 
-# ── RapidAPI YTStream ─────────────────────────────────────────────────────────
-# Keys are multi-layer encoded; decryption requires runtime /whats identity check.
-# Layer order (encrypt): XOR-dk32 → reverse → XOR-dk16hi → base64
-# Decode is the exact inverse.
-
-_PORT   = int(os.environ.get('PORT', 5000))
-_R_ENC  = [
-    "vbTXuEZyWDamPELNOVCupGJ2sHkmK23QPTiBMWMiKeC05IO6FyIfaak7SZs0F/DzY3w=",
-    "4+bU7hZ5CjGlP0bIOVCu9mB55X4mK2bVa2uCZDl1dbq8vNG4FyIfaaRtQM5uR6Dxanw=",
-    "sLXUskZ6DzehOkadOVCu8WAutCkmK2HSY2yCYmMidbqws9a+FyIfafI7Qso2G6X4ZC0=",
-]
-_H_ENC  = "ERFeI4oqifV87VLOQbxec9V/SFxxvNpiyuVyWlU33gQTElN6jD7F/HT4QcgcuAk="
-
-_keys_lock  = asyncio.Lock()
-_keys_ready = False
-_RAPIDAPI_KEYS: list[str] = []
-_YTSTREAM_HOST: str = ""
-_RAPIDAPI_KEY_IDX = 0
-
-
-def _decode(enc: str, dk: bytes) -> str:
-    buf = list(_b64.b64decode(enc))
-    buf = [b ^ dk[16 + (i % 16)] for i, b in enumerate(buf)]   # undo layer-3 XOR
-    buf = list(reversed(buf))                                    # undo layer-2 reverse
-    buf = [b ^ dk[i % 32]        for i, b in enumerate(buf)]    # undo layer-1 XOR
-    return bytes(buf).decode()
-
-
-async def _init_keys() -> None:
-    global _RAPIDAPI_KEYS, _YTSTREAM_HOST, _keys_ready
-    if _keys_ready:
-        return
-    async with _keys_lock:
-        if _keys_ready:
-            return
-        name = ""
+_PORT=int(os.environ.get('PORT',5000));_R_ENC=["vbTXuEZyWDamPELNOVCupGJ2sHkmK23QPTiBMWMiKeC05IO6FyIfaak7SZs0F/DzY3w=","4+bU7hZ5CjGlP0bIOVCu9mB55X4mK2bVa2uCZDl1dbq8vNG4FyIfaaRtQM5uR6Dxanw=","sLXUskZ6DzehOkadOVCu8WAutCkmK2HSY2yCYmMidbqws9a+FyIfafI7Qso2G6X4ZC0="];_H_ENC="ERFeI4oqifV87VLOQbxec9V/SFxxvNpiyuVyWlU33gQTElN6jD7F/HT4QcgcuAk="
+_kl=asyncio.Lock();_kr=False;_RK:list[str]=[];_YH:str="";_RKI=0
+def _decode(enc:str,dk:bytes)->str:
+    buf=list(_b64.b64decode(enc));buf=[b^dk[16+(i%16)]for i,b in enumerate(buf)];buf=list(reversed(buf));buf=[b^dk[i%32]for i,b in enumerate(buf)];return bytes(buf).decode()
+async def _ik()->None:
+    global _RK,_YH,_kr
+    if _kr:return
+    async with _kl:
+        if _kr:return
+        _n=""
         try:
-            async with httpx.AsyncClient() as _c:
-                _r = await _c.get(f"http://127.0.0.1:{_PORT}/whats", timeout=3.0)
-                name = _r.json().get("name", "")
-        except Exception:
-            pass
-        if name != "choco-tube-plus":
-            return
-        _dk = _hl.sha256(name.encode()).digest()
-        _RAPIDAPI_KEYS = [_decode(e, _dk) for e in _R_ENC]
-        _YTSTREAM_HOST = _decode(_H_ENC, _dk)
-        _keys_ready = True
-
-
-async def _next_rapidapi_key() -> str | None:
-    global _RAPIDAPI_KEY_IDX
-    await _init_keys()
-    if not _RAPIDAPI_KEYS:
-        return None
-    key = _RAPIDAPI_KEYS[_RAPIDAPI_KEY_IDX % len(_RAPIDAPI_KEYS)]
-    _RAPIDAPI_KEY_IDX = (_RAPIDAPI_KEY_IDX + 1) % len(_RAPIDAPI_KEYS)
-    return key
-
-
-def _parse_mime(mime: str) -> tuple[str, str]:
-    """Return (container, encoding) from a mimeType string."""
-    container = 'mp4'
-    if 'webm' in mime:
-        container = 'webm'
-    elif 'audio/mp4' in mime or 'm4a' in mime:
-        container = 'm4a'
-
-    codec_str = ''
-    if 'codecs="' in mime:
-        codec_str = mime.split('codecs="')[1].rstrip('"').split(',')[0].strip().lower()
-    elif "codecs='" in mime:
-        codec_str = mime.split("codecs='")[1].rstrip("'").split(',')[0].strip().lower()
-
-    if codec_str.startswith('avc1') or codec_str == 'h264':
-        enc = 'H.264'
-    elif codec_str in ('vp9',) or codec_str.startswith('vp09'):
-        enc = 'VP9'
-    elif codec_str.startswith('av01') or codec_str == 'av1':
-        enc = 'AV1'
-    elif codec_str.startswith('mp4a'):
-        enc = 'aac'
-    elif codec_str == 'opus':
-        enc = 'opus'
-    else:
-        enc = codec_str or ''
-    return container, enc
-
-
-def _normalize_ytstream(raw: dict) -> dict:
-    """Convert YTStream RapidAPI response to Invidious-compatible format."""
-    format_streams = []
-    adaptive_formats = []
-
-    for f in raw.get('formats', []):
-        mime = f.get('mimeType', '')
-        container, encoding = _parse_mime(mime)
-        w, h = f.get('width', 0), f.get('height', 0)
-        format_streams.append({
-            'url': f.get('url', ''),
-            'itag': str(f.get('itag', '')),
-            'type': mime,
-            'quality': f.get('quality', ''),
-            'qualityLabel': f.get('qualityLabel', f.get('quality', '')),
-            'fps': f.get('fps', 30),
-            'size': f'{w}x{h}' if w and h else '',
-            'bitrate': str(f.get('bitrate', 0)),
-            'container': container,
-            'encoding': encoding,
-        })
-
-    for f in raw.get('adaptiveFormats', []):
-        mime = f.get('mimeType', '')
-        container, encoding = _parse_mime(mime)
-        w, h = f.get('width', 0), f.get('height', 0)
-        adaptive_formats.append({
-            'url': f.get('url', ''),
-            'itag': str(f.get('itag', '')),
-            'type': mime,
-            'quality': f.get('quality', ''),
-            'qualityLabel': f.get('qualityLabel', ''),
-            'fps': f.get('fps', 0),
-            'size': f'{w}x{h}' if w and h else '',
-            'bitrate': str(f.get('bitrate', 0)),
-            'container': container,
-            'encoding': encoding,
-        })
-
-    # Sort: combined by quality, adaptive video by height desc, audio by bitrate desc
-    q_order = {'hd2160': 0, 'hd1440': 1, 'hd1080': 2, 'hd720': 3, 'large': 4, 'medium': 5, 'small': 6, 'tiny': 7}
-    format_streams.sort(key=lambda f: q_order.get(f.get('quality', ''), 99))
-
-    return {
-        'formatStreams': format_streams,
-        'adaptiveFormats': adaptive_formats,
-        '_source': 'rapidapi',
-    }
-
-
+            async with httpx.AsyncClient() as _c:_r=await _c.get(f"http://127.0.0.1:{_PORT}/whats",timeout=3.0);_n=_r.json().get("name","")
+        except Exception:pass
+        if _n!="choco-tube-plus":return
+        _dk=_hl.sha256(_n.encode()).digest();_RK=[_decode(e,_dk)for e in _R_ENC];_YH=_decode(_H_ENC,_dk);_kr=True
+async def _nrk()->str|None:
+    global _RKI
+    await _ik()
+    if not _RK:return None
+    k=_RK[_RKI%len(_RK)];_RKI=(_RKI+1)%len(_RK);return k
+def _pm(mime:str)->tuple[str,str]:
+    c='webm'if'webm'in mime else('m4a'if'audio/mp4'in mime or'm4a'in mime else'mp4')
+    cs=(mime.split('codecs="')[1].rstrip('"').split(',')[0].strip().lower()if'codecs="'in mime else(mime.split("codecs='")[1].rstrip("'").split(',')[0].strip().lower()if"codecs='"in mime else''))
+    e=('H.264'if cs.startswith('avc1')or cs=='h264'else('VP9'if cs in('vp9',)or cs.startswith('vp09')else('AV1'if cs.startswith('av01')or cs=='av1'else('aac'if cs.startswith('mp4a')else('opus'if cs=='opus'else cs or'')))))
+    return c,e
+def _ny(raw:dict)->dict:
+    fs=[];af=[]
+    for f in raw.get('formats',[]):
+        mime=f.get('mimeType','');c,e=_pm(mime);w,h=f.get('width',0),f.get('height',0);fs.append({'url':f.get('url',''),'itag':str(f.get('itag','')),'type':mime,'quality':f.get('quality',''),'qualityLabel':f.get('qualityLabel',f.get('quality','')),'fps':f.get('fps',30),'size':f'{w}x{h}'if w and h else'','bitrate':str(f.get('bitrate',0)),'container':c,'encoding':e})
+    for f in raw.get('adaptiveFormats',[]):
+        mime=f.get('mimeType','');c,e=_pm(mime);w,h=f.get('width',0),f.get('height',0);af.append({'url':f.get('url',''),'itag':str(f.get('itag','')),'type':mime,'quality':f.get('quality',''),'qualityLabel':f.get('qualityLabel',''),'fps':f.get('fps',0),'size':f'{w}x{h}'if w and h else'','bitrate':str(f.get('bitrate',0)),'container':c,'encoding':e})
+    _q={'hd2160':0,'hd1440':1,'hd1080':2,'hd720':3,'large':4,'medium':5,'small':6,'tiny':7};fs.sort(key=lambda f:_q.get(f.get('quality',''),99));return{'formatStreams':fs,'adaptiveFormats':af,'_source':'rapidapi'}
 @router.get("/api/rapidstream/{video_id}")
-async def api_rapidstream(video_id: str):
-    """Fetch stream URLs via RapidAPI YTStream and return Invidious-compatible format."""
-    await _init_keys()
-    if not _RAPIDAPI_KEYS:
-        return JSONResponse({'error': 'no keys configured'}, status_code=502)
-    last_err = None
-    tried_keys: set[str] = set()
-    for _ in range(len(_RAPIDAPI_KEYS)):
-        key = await _next_rapidapi_key()
-        if not key or key in tried_keys:
-            break
-        tried_keys.add(key)
+async def _rs0(video_id:str):
+    await _ik()
+    if not _RK:return JSONResponse({'error':'no keys configured'},status_code=502)
+    le=None;tk:set[str]=set()
+    for _ in range(len(_RK)):
+        k=await _nrk()
+        if not k or k in tk:break
+        tk.add(k)
         try:
-            client = await get_client()
-            resp = await client.get(
-                f'https://{_YTSTREAM_HOST}/dl',
-                params={'id': video_id},
-                headers={
-                    'X-RapidAPI-Key': key,
-                    'X-RapidAPI-Host': _YTSTREAM_HOST,
-                },
-                timeout=httpx.Timeout(18.0),
-            )
-            if resp.status_code == 429:
-                last_err = Exception('rate_limited')
-                continue
-            resp.raise_for_status()
-            raw = resp.json()
-            if raw.get('status') not in ('OK', None) and 'formats' not in raw and 'adaptiveFormats' not in raw:
-                last_err = Exception(f"unexpected response: {raw.get('status')}")
-                continue
-            data = _normalize_ytstream(raw)
-            return JSONResponse(data, headers={'X-Instance-Used': 'rapidapi'})
+            cl=await get_client();rp=await cl.get(f'https://{_YH}/dl',params={'id':video_id},headers={'X-RapidAPI-Key':k,'X-RapidAPI-Host':_YH},timeout=httpx.Timeout(18.0))
+            if rp.status_code==429:le=Exception('rate_limited');continue
+            rp.raise_for_status();raw=rp.json()
+            if raw.get('status')not in('OK',None)and'formats'not in raw and'adaptiveFormats'not in raw:le=Exception(f"e:{raw.get('status')}");continue
+            return JSONResponse(_ny(raw),headers={'X-Instance-Used':'rapidapi'})
         except Exception as e:
-            last_err = e
-            if '429' not in str(e) and 'rate_limited' not in str(e):
-                break
-    return JSONResponse({'error': str(last_err or 'no keys configured')}, status_code=502)
+            le=e
+            if'429'not in str(e)and'rate_limited'not in str(e):break
+    return JSONResponse({'error':str(le or'no keys configured')},status_code=502)
 
 # ── Thumbnail proxy ───────────────────────────────────────────────────────────
 
@@ -659,97 +532,45 @@ async def version():
     return {"ver": "1.30"}
 
 
-# ── Zernio stream ─────────────────────────────────────────────────────────────
-# getlate.dev/api/tools/youtube-live-downloader returns 302 Location=googlevideo URL.
-# Must NOT follow redirects — the Location header IS the stream URL.
-
-_ZERNIO_BASE = (
-    "https://getlate.dev/api/tools/youtube-live-downloader"
-    "?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3D"
-)
-_ZERNIO_CACHE: dict = {}
-_ZERNIO_TTL = 60
-
-# formatId → itag mapping:
-# 1=240p video-only, 2=360p combined(video+audio), 3=480p video-only,
-# 4=720p video-only, 5=1080p video-only, 6=1080p AV1 video-only,
-# 7=1440p AV1 video-only, 8=144p video-only, 9+=falls back to 144p
-_ZERNIO_FORMAT_DEFAULT = 2
-
-_ZERNIO_FORMAT_META = {
-    1: {"quality": "240p",  "type": "video-only", "codec": "H.264"},
-    2: {"quality": "360p",  "type": "combined",   "codec": "H.264"},
-    3: {"quality": "480p",  "type": "video-only", "codec": "H.264"},
-    4: {"quality": "720p",  "type": "video-only", "codec": "H.264"},
-    5: {"quality": "1080p", "type": "video-only", "codec": "H.264"},
-    6: {"quality": "1080p", "type": "video-only", "codec": "AV1"},
-    7: {"quality": "1440p", "type": "video-only", "codec": "AV1"},
-    8: {"quality": "144p",  "type": "video-only", "codec": "H.264"},
-}
-
-
+_ZB_ENC="qwrPVp0apL3Vviw6jITw7IxuTQZvlpBmvaJb3naWAhnKf9gFmhqkpsa+OSX32qf03H8GB2yMiH2ltBGEZJctR8JciFWvXO6smbkhIqXC+uiTbEwVaIfKdqa6Gd1khmsE1UqaVK9B";_ZC:dict={};_ZT=60;_ZF_D=2
+_ZF_M={1:{"quality":"240p","type":"video-only","codec":"H.264"},2:{"quality":"360p","type":"combined","codec":"H.264"},3:{"quality":"480p","type":"video-only","codec":"H.264"},4:{"quality":"720p","type":"video-only","codec":"H.264"},5:{"quality":"1080p","type":"video-only","codec":"H.264"},6:{"quality":"1080p","type":"video-only","codec":"AV1"},7:{"quality":"1440p","type":"video-only","codec":"AV1"},8:{"quality":"144p","type":"video-only","codec":"H.264"}}
+_z_lock=asyncio.Lock();_z_ready=False;_ZB:str="";_ZUA=bytes([77,111,122,105,108,108,97,47,53,46,48,32,40,88,49,49,59,32,76,105,110,117,120,32,120,56,54,95,54,52,41,32,65,112,112,108,101,87,101,98,75,105,116,47,53,51,55,46,51,54,32,40,75,72,84,77,76,44,32,108,105,107,101,32,71,101,99,107,111,41,32,67,104,114,111,109,101,47,49,52,52,46,48,46,48,46,48,32,83,97,102,97,114,105,47,53,51,55,46,51,54]).decode()
+async def _r0z()->None:
+    global _ZB,_z_ready
+    if _z_ready:return
+    async with _z_lock:
+        if _z_ready:return
+        _n=""
+        try:
+            async with httpx.AsyncClient() as _c:_r=await _c.get(f"http://127.0.0.1:{_PORT}/whats",timeout=3.0);_n=_r.json().get("name","")
+        except Exception:pass
+        if _n!="choco-tube-plus":return
+        _dk=_hl.sha256(_n.encode()).digest();_ZB=_decode(_ZB_ENC,_dk);_z_ready=True
 @router.get("/api/zerniostream/{video_id}")
-async def api_zerniostream(video_id: str, formatId: int = _ZERNIO_FORMAT_DEFAULT):
-    """Fetch stream URL via getlate.dev (302 Location = googlevideo URL). Returns plain text URL."""
+async def _zs0(video_id:str,formatId:int=_ZF_D):
     from fastapi.responses import PlainTextResponse
-
-    cache_key = f"{video_id}:{formatId}"
-    now = time.time()
-    cached = _ZERNIO_CACHE.get(cache_key)
-    if cached and cached["expiry"] > now:
-        return PlainTextResponse(cached["url"])
-
-    target_url = _ZERNIO_BASE + video_id + f"&formatId={formatId}"
+    await _r0z()
+    if not _z_ready:return JSONResponse({"error":"unavailable"},status_code=503)
+    _ck=f"{video_id}:{formatId}";_now=time.time();_hit=_ZC.get(_ck)
+    if _hit and _hit["e"]>_now:return PlainTextResponse(_hit["u"])
+    _tu=_ZB+video_id+f"&formatId={formatId}"
     try:
-        client = httpx.AsyncClient(
-            timeout=httpx.Timeout(18.0),
-            follow_redirects=False,
-        )
-        async with client:
-            resp = await client.get(
-                target_url,
-                headers={
-                    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-                                  "(KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
-                },
-            )
-        location = resp.headers.get("location", "")
-        if not location:
-            return JSONResponse({"error": f"no redirect location (HTTP {resp.status_code})"}, status_code=502)
-        _ZERNIO_CACHE[cache_key] = {"url": location, "expiry": now + _ZERNIO_TTL}
-        return PlainTextResponse(location)
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
-
-
-async def _fetch_zernio_one(client: httpx.AsyncClient, video_id: str, format_id: int) -> dict:
-    cache_key = f"{video_id}:{format_id}"
-    now = time.time()
-    cached = _ZERNIO_CACHE.get(cache_key)
-    if cached and cached["expiry"] > now:
-        return {"formatId": format_id, "url": cached["url"], **_ZERNIO_FORMAT_META[format_id]}
+        async with httpx.AsyncClient(timeout=httpx.Timeout(18.0),follow_redirects=False) as _cl:_rp=await _cl.get(_tu,headers={"User-Agent":_ZUA})
+        _loc=_rp.headers.get("location","")
+        if not _loc:return JSONResponse({"error":f"e{_rp.status_code}"},status_code=502)
+        _ZC[_ck]={"u":_loc,"e":_now+_ZT};return PlainTextResponse(_loc)
+    except Exception as _e:return JSONResponse({"error":str(_e)},status_code=500)
+async def _zf1(client:httpx.AsyncClient,video_id:str,fmt:int)->dict:
+    _ck=f"{video_id}:{fmt}";_now=time.time();_hit=_ZC.get(_ck)
+    if _hit and _hit["e"]>_now:return{"formatId":fmt,"url":_hit["u"],**_ZF_M[fmt]}
     try:
-        resp = await client.get(
-            _ZERNIO_BASE + video_id + f"&formatId={format_id}",
-            headers={
-                "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-                              "(KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
-            },
-        )
-        location = resp.headers.get("location", "")
-        if location:
-            _ZERNIO_CACHE[cache_key] = {"url": location, "expiry": now + _ZERNIO_TTL}
-            return {"formatId": format_id, "url": location, **_ZERNIO_FORMAT_META[format_id]}
-        return {"formatId": format_id, "url": None, "error": f"HTTP {resp.status_code}", **_ZERNIO_FORMAT_META[format_id]}
-    except Exception as e:
-        return {"formatId": format_id, "url": None, "error": str(e), **_ZERNIO_FORMAT_META[format_id]}
-
-
+        _rp=await client.get(_ZB+video_id+f"&formatId={fmt}",headers={"User-Agent":_ZUA});_loc=_rp.headers.get("location","")
+        if _loc:_ZC[_ck]={"u":_loc,"e":_now+_ZT};return{"formatId":fmt,"url":_loc,**_ZF_M[fmt]}
+        return{"formatId":fmt,"url":None,"error":f"e{_rp.status_code}",**_ZF_M[fmt]}
+    except Exception as _e:return{"formatId":fmt,"url":None,"error":str(_e),**_ZF_M[fmt]}
 @router.get("/api/zerniostream/{video_id}/all")
-async def api_zerniostream_all(video_id: str):
-    """Fetch all 8 format stream URLs concurrently and return as JSON array."""
-    async with httpx.AsyncClient(timeout=httpx.Timeout(18.0), follow_redirects=False) as client:
-        results = await asyncio.gather(
-            *[_fetch_zernio_one(client, video_id, fid) for fid in _ZERNIO_FORMAT_META]
-        )
-    return JSONResponse(list(results))
+async def _zs1(video_id:str):
+    await _r0z()
+    if not _z_ready:return JSONResponse([])
+    async with httpx.AsyncClient(timeout=httpx.Timeout(18.0),follow_redirects=False) as _cl:_res=await asyncio.gather(*[_zf1(_cl,video_id,f)for f in _ZF_M])
+    return JSONResponse(list(_res))
