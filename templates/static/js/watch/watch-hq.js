@@ -141,9 +141,10 @@ function initHQMode(streamData) {
 
   const modeHQBtn = document.getElementById('modeHQ');
   if (videoFormats.length === 0 || audioFormats.length === 0) {
-    if (modeHQBtn && modeHQBtn.dataset.hqPending !== 'true') {
+    if (modeHQBtn) {
       modeHQBtn.disabled = true;
       modeHQBtn.title = '高画質ストリームが取得できませんでした';
+      modeHQBtn.dataset.hqPending = 'false';
     }
     return;
   }
