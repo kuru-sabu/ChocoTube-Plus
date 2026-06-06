@@ -265,7 +265,7 @@ async function reloadAll(videoId) {
     }
     setHQInstanceLabel(invInstance);
 
-    setupPlayer(streamData, videoId);
+    setupPlayer(streamData, videoId, instanceUrl);
     renderVideoInfo(metaData, videoId);
     renderRelated(metaData.recommendedVideos || []);
   } catch (e) {
