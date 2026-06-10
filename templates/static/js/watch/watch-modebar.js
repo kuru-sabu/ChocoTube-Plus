@@ -119,6 +119,9 @@ function initModeBar(videoId) {
     modeHQ.classList.remove('active');
     const _mEdu = document.getElementById('modeEdu');
     if (_mEdu) _mEdu.classList.remove('active');
+    const _mPiped = document.getElementById('modePiped');
+    if (_mPiped) _mPiped.classList.remove('active');
+    _pipedHideBar();
     const _ep = document.getElementById('eduPlayer');
     if (_ep) { _ep.setAttribute('hidden', ''); _ep.src = 'about:blank'; }
     const _eb = document.getElementById('eduBar');
@@ -174,6 +177,9 @@ function initModeBar(videoId) {
     modeNocookie.classList.remove('active');
     const _mEdu2 = document.getElementById('modeEdu');
     if (_mEdu2) _mEdu2.classList.remove('active');
+    const _mPiped2 = document.getElementById('modePiped');
+    if (_mPiped2) _mPiped2.classList.remove('active');
+    _pipedHideBar();
     const _ep2 = document.getElementById('eduPlayer');
     if (_ep2) { _ep2.setAttribute('hidden', ''); _ep2.src = 'about:blank'; }
     const _eb2 = document.getElementById('eduBar');
@@ -213,6 +219,9 @@ function initModeBar(videoId) {
     modeHQ.classList.remove('active');
     const _mEdu3 = document.getElementById('modeEdu');
     if (_mEdu3) _mEdu3.classList.remove('active');
+    const _mPiped3 = document.getElementById('modePiped');
+    if (_mPiped3) _mPiped3.classList.remove('active');
+    _pipedHideBar();
     const _ep3 = document.getElementById('eduPlayer');
     if (_ep3) { _ep3.setAttribute('hidden', ''); _ep3.src = 'about:blank'; }
     const _eb3 = document.getElementById('eduBar');
@@ -312,6 +321,9 @@ function initModeBar(videoId) {
     modeStream.classList.remove('active');
     modeHQ.classList.remove('active');
     modeNocookie.classList.remove('active');
+    const _mPiped4 = document.getElementById('modePiped');
+    if (_mPiped4) _mPiped4.classList.remove('active');
+    _pipedHideBar();
     player.pause();
     player.setAttribute('hidden', '');
     document.getElementById('playerSkeleton').hidden = true;
@@ -385,6 +397,7 @@ function initModeBar(videoId) {
   };
 
   initZernioBar(videoId);
+  initPipedMode(videoId);
 }
 
 function initZernioBar(videoId) {
@@ -436,6 +449,7 @@ function initZernioBar(videoId) {
     const wasPlaying = !player.paused;
     const url = await _fetchZernio(2);
     if (!url) { zernioNormalBtn.classList.remove('active'); return; }
+    if (typeof setInstanceLabel === 'function') setInstanceLabel('zernio');
     player.muted = (typeof volState !== 'undefined') ? volState.muted : false;
     player.src = url;
     player.currentTime = ct;
@@ -485,6 +499,7 @@ function initZernioBar(videoId) {
         const wasPlaying = !player.paused;
         const url = await _fetchZernio(fid);
         if (!url) { btn.classList.remove('active'); return; }
+        if (typeof setInstanceLabel === 'function') setInstanceLabel('zernio');
         player.muted = true;
         player.src = url;
         player.currentTime = ct;
@@ -751,6 +766,185 @@ function switchVideoTrack(url, container) {
   if (container) {
     container.querySelectorAll('.quality-btn').forEach(b => {
       b.classList.toggle('active', b.dataset.videoUrl === url);
+    });
+  }
+}
+
+// ── Piped mode ────────────────────────────────────────────────────────────────
+
+function _pipedHideBar() {
+  const pb = document.getElementById('pipedBar');
+  if (pb) pb.setAttribute('hidden', '');
+}
+
+function _pipedGetCachedRemaining() {
+  try {
+    const raw = localStorage.getItem('chocotube_piped_remaining');
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    const today = new Date().toISOString().slice(0, 10);
+    if (obj.date === today) return obj.remaining;
+  } catch {}
+  return null;
+}
+function _pipedSaveCachedRemaining(remaining) {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    localStorage.setItem('chocotube_piped_remaining', JSON.stringify({ date: today, remaining }));
+  } catch {}
+}
+
+function initPipedMode(videoId) {
+  const modePiped           = document.getElementById('modePiped');
+  const pipedBar            = document.getElementById('pipedBar');
+  const pipedConfirmOverlay = document.getElementById('pipedConfirmOverlay');
+  const pipedYesBtn         = document.getElementById('pipedYesBtn');
+  const pipedNoBtn          = document.getElementById('pipedNoBtn');
+  const pipedStatus         = document.getElementById('pipedStatus');
+  const player         = document.getElementById('videoPlayer');
+  const errorEl        = document.getElementById('playerError');
+  const errorMsg       = document.getElementById('playerErrorMsg');
+  const reloadBtn      = document.getElementById('reloadBtn');
+  const nocookiePlayer = document.getElementById('nocookiePlayer');
+  if (!modePiped) return;
+
+  let _loading = false;
+
+  // 他プレイヤー・バーを非表示にする
+  function _hideOthers() {
+    ['qualityBar','hqBar','eduBar','zernioBar','zernioQualBar',
+     'audioTrackBar','videoTrackBar','streamAltBtn'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.setAttribute('hidden', '');
+    });
+    if (nocookiePlayer) { nocookiePlayer.setAttribute('hidden', ''); nocookiePlayer.src = 'about:blank'; }
+    const ep = document.getElementById('eduPlayer');
+    if (ep) { ep.setAttribute('hidden', ''); ep.src = 'about:blank'; }
+    const ps = document.getElementById('playerSkeleton');
+    if (ps) ps.hidden = true;
+    if (errorEl) errorEl.hidden = true;
+    if (reloadBtn) reloadBtn.hidden = true;
+  }
+
+  // モード共通セットアップ（ボタン状態・他プレイヤー非表示・オーバーレイ）
+  function _setupModeUI() {
+    try { localStorage.setItem('chocotube_preferred_mode', 'piped'); } catch {}
+    stopIframeTracking();
+    if (typeof hqActive !== 'undefined' && hqActive && typeof teardownHQ === 'function') teardownHQ();
+    modePiped.classList.add('active');
+    document.querySelectorAll('.pc-mode-btn').forEach(b => { if (b !== modePiped) b.classList.remove('active'); });
+    _hideOthers();
+    if (player) { player.pause(); player.setAttribute('hidden', ''); }
+    const vc = document.getElementById('vctrls');
+    if (vc) vc.classList.add('vctrls-show');
+    if (typeof setOverlayQualMode === 'function') setOverlayQualMode('stream');
+  }
+
+  // ステータス表示（オーバーレイを隠してステータスを出す）
+  function _showStatus(text, isError) {
+    if (pipedConfirmOverlay) pipedConfirmOverlay.setAttribute('hidden', '');
+    if (pipedStatus) {
+      pipedStatus.textContent = text;
+      pipedStatus.className = 'pc-alt-status' + (isError ? ' stream-alt-fail' : '');
+      pipedStatus.removeAttribute('hidden');
+    }
+  }
+
+  // ストリームURLをプレイヤーにセットして再生
+  function _playUrl(srcUrl, savedTime) {
+    if (!player) return;
+    player.src = srcUrl;
+    player.removeAttribute('hidden');
+    if (savedTime > 1) {
+      player.addEventListener('loadedmetadata', () => {
+        player.currentTime = savedTime;
+        player.play().catch(() => {});
+      }, { once: true });
+    } else if (typeof getSettings === 'function' && getSettings().autoplay) {
+      if (typeof tryAutoplay === 'function') tryAutoplay(player, null);
+      else player.play().catch(() => {});
+    } else {
+      player.play().catch(() => {});
+    }
+  }
+
+  // API呼び出し＋再生
+  async function _fetchAndPlay(wantProxy, savedTime) {
+    if (_loading) return;
+    _loading = true;
+    _showStatus('Pipedからストリーム取得中...');
+    try {
+      const res = await fetch(`/api/pipedstream/${encodeURIComponent(videoId)}?want_proxy=${wantProxy}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      const host = (data.instance || '').replace(/^https?:\/\//, '').split('/')[0];
+
+      if (data.mode === 'proxy') {
+        const rem = data.remaining;
+        _pipedSaveCachedRemaining(rem);
+        const typeLabel = data.stream_type === 'combined' ? '音付き' : (data.stream_type === 'hls' ? 'HLS' : '映像のみ');
+        _showStatus(`Proxy再生中 (${typeLabel}) — 今日残り${rem}回 / ${host}`);
+        if (typeof setInstanceLabel === 'function') setInstanceLabel(data.instance || 'piped');
+        _playUrl(data.proxy_url, savedTime);
+
+      } else if (data.mode === 'direct') {
+        const typeLabel = data.stream_type === 'combined' ? '音付き' : (data.stream_type === 'hls' ? 'HLS' : '映像のみ');
+        _showStatus(`Direct埋め込み (${typeLabel}) — ${host}`);
+        if (typeof setInstanceLabel === 'function') setInstanceLabel(data.instance || 'piped');
+        _playUrl(data.url, savedTime);
+
+      } else if (data.mode === 'denied') {
+        _pipedSaveCachedRemaining(0);
+        _showStatus(`制限到達: ${data.message}`, true);
+        if (errorEl) errorEl.hidden = false;
+        if (errorMsg) errorMsg.textContent = data.message;
+      }
+    } catch (e) {
+      _showStatus('取得失敗: ' + e.message, true);
+      if (errorEl) errorEl.hidden = false;
+      if (errorMsg) errorMsg.textContent = 'Pipedストリームの取得に失敗しました。';
+    } finally {
+      _loading = false;
+    }
+  }
+
+  // Pipedボタンクリック → 確認オーバーレイを表示
+  modePiped.addEventListener('click', () => {
+    if (modePiped.classList.contains('active')) return;
+    const savedTime = getEstimatedCurrentTime();
+    _setupModeUI();
+    // pipedBarを表示しオーバーレイを出す
+    if (pipedBar) pipedBar.removeAttribute('hidden');
+    if (pipedStatus) pipedStatus.setAttribute('hidden', '');
+    if (pipedConfirmOverlay) pipedConfirmOverlay.removeAttribute('hidden');
+    // 残り回数が0のときはProxyボタンをdisable
+    const cachedRem = _pipedGetCachedRemaining();
+    const proxyExhausted = cachedRem !== null && cachedRem <= 0;
+    if (pipedYesBtn) {
+      pipedYesBtn.disabled = proxyExhausted;
+      const noteEl = pipedConfirmOverlay ? pipedConfirmOverlay.querySelector('.piped-confirm-limit-note') : null;
+      if (noteEl) noteEl.hidden = !proxyExhausted;
+    }
+    // はい/いいえ のクリックに savedTime を渡す
+    pipedYesBtn._savedTime = savedTime;
+    pipedNoBtn._savedTime = savedTime;
+  });
+
+  // はい → proxy再生
+  if (pipedYesBtn) {
+    pipedYesBtn.addEventListener('click', () => {
+      const savedTime = pipedYesBtn._savedTime || 0;
+      _fetchAndPlay(true, savedTime);
+    });
+  }
+
+  // いいえ → direct埋め込み
+  if (pipedNoBtn) {
+    pipedNoBtn.addEventListener('click', () => {
+      const savedTime = pipedNoBtn._savedTime || 0;
+      _fetchAndPlay(false, savedTime);
     });
   }
 }
